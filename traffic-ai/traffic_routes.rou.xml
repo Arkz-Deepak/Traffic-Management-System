@@ -1,0 +1,15 @@
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    
+    <vType id="standard_car" accel="2.6" decel="4.5" sigma="0.5" length="5" minGap="2.5" maxSpeed="13.89"/>
+
+    <route id="north_to_south" edges="top0A0 A0bottom0"/>
+    <route id="south_to_north" edges="bottom0A0 A0top0"/>
+    <route id="east_to_west" edges="right0A0 A0left0"/>
+    <route id="west_to_east" edges="left0A0 A0right0"/>
+
+    <flow id="flow_N" type="standard_car" route="north_to_south" begin="0" end="100000" probability="0.05"/>
+    <flow id="flow_S" type="standard_car" route="south_to_north" begin="0" end="100000" probability="0.05"/>
+    <flow id="flow_E" type="standard_car" route="east_to_west" begin="0" end="100000" probability="0.05"/>
+    <flow id="flow_W" type="standard_car" route="west_to_east" begin="0" end="100000" probability="0.05"/>
+
+</routes>
