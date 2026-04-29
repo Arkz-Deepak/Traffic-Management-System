@@ -64,3 +64,19 @@ pnpm-debug.log*
 *.sln
 *.sw?
 Thumbs.db
+# Node/React
+node_modules/
+.env
+build/
+dist/
+
+# Python/AI
+__pycache__/
+*.pyc
+ml_env/
+venv/
+.ipynb_checkpoints/
+
+# OS Files
+.DS_Store
+Thumbs.db
