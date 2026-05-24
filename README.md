@@ -4,6 +4,7 @@
 ![NodeJS](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white)
 ![SUMO](https://img.shields.io/badge/SUMO-Traffic_Simulation-blue?style=for-the-badge)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20265628.svg)](https://doi.org/10.5281/zenodo.20265628)
 
 VisionX is a next-generation traffic optimization system built for **Smart India Hackathon 2026**. It replaces inefficient fixed-time traffic lights with a **Deep Reinforcement Learning (DQN)** agent that dynamically manages intersection phases in real-time, reducing total waiting vehicles by over **85%**.
 
