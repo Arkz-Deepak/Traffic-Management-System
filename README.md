@@ -1,10 +1,10 @@
 # 🚦 VisionX: AI-Powered Smart Traffic Management
 
-![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
-![NodeJS](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white)
+![React](https://img.shields.io/badge/react-20232a?style=for-the-badge&logo=react&logoColor=61DAFB)
+![NodeJS](https://img.shields.io/badge/node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
 ![SUMO](https://img.shields.io/badge/SUMO-Traffic_Simulation-blue?style=for-the-badge)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20265628.svg)](https://doi.org/10.5281/zenodo.20265628)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20265628-blue?style=for-the-badge)](https://doi.org/10.5281/zenodo.20265628)
 
 VisionX is a next-generation traffic optimization system built for **Smart India Hackathon 2026**. It replaces inefficient fixed-time traffic lights with a **Deep Reinforcement Learning (DQN)** agent that dynamically manages intersection phases in real-time, reducing total waiting vehicles by over **85%**.
 
