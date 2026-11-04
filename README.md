@@ -129,21 +129,25 @@ Rigorous microscopic evaluations were conducted in Eclipse SUMO under the Krauss
 
 ### 1. Controlled Corridor Benchmark (1,000s Evaluation Horizon)
 
-| Controller | Avg Queue ($\bar{Q}$, veh) | Max Queue ($Q_{\max}$, veh) | EV Latency ($T_{\text{clear}}$, s) | Recovery Horizon ($T_{\text{rec}}$, s) |
-|---|---|---|---|---|
-| **Fixed-Time (30s Cycle)** | 2.02 | 8 | 29s | 31s |
-| **Demand Actuated** | 0.81 | 5 | 34s | 20s |
-| **Max-Pressure (Varaiya 2013)** | **0.76** | **4** | 30s | 30s |
-| **AURA (Proposed)** | 0.85 | 6 | **14s (-58.6%)** | **20s** |
+| Controller | Class / Venue | Avg Queue ($\bar{Q}$, veh) | Max Queue ($Q_{\max}$, veh) | EV Latency ($T_{\text{clear}}$, s) | Recovery Horizon ($T_{\text{rec}}$, s) |
+|---|---|---|---|---|---|
+| **Fixed-Time (30s Cycle)** | Webster (1958) | 2.02 | 8 | 29s | 31s |
+| **Demand Actuated** | SCATS (1990) | 0.81 | 5 | 34s | **20s** |
+| **Max-Pressure** | Varaiya (2013) | **0.76** | **4** | 30s | 30s |
+| **PressLight** | Wei et al., ACM KDD (2019) | 0.81 | **4** | 31s | **20s** |
+| **EVP-DRL** | Lin et al., TR-C (2023) | 0.78 | **4** | 30s | **20s** |
+| **AURA (Proposed)** | Safe MARL + Momentum | 0.85 | 6 | **14s (-58.6%)** | **20s** |
 
 ### 2. Real-World Midtown Manhattan OpenStreetMap Benchmark (183 Traffic Lights, 661 Edges)
 
-| Controller | Avg Queue ($\bar{Q}$, veh) | Max Queue ($Q_{\max}$, veh) | EV Latency ($T_{\text{clear}}$, s) | Recovery Horizon ($T_{\text{rec}}$, s) |
-|---|---|---|---|---|
-| **Fixed-Time (Manhattan)** | 38.19 | 103 | 42s | 26s |
-| **Demand Actuated** | 30.30 | 83 | 36s | **25s** |
-| **Max-Pressure** | 27.97 | 76 | 32s | **25s** |
-| **AURA (Proposed)** | **26.33 (-31.0%)** | **69 (-33.0%)** | **16s (-61.9%)** | 31s |
+| Controller | Class / Venue | Avg Queue ($\bar{Q}$, veh) | Max Queue ($Q_{\max}$, veh) | EV Latency ($T_{\text{clear}}$, s) | Recovery Horizon ($T_{\text{rec}}$, s) |
+|---|---|---|---|---|---|
+| **Fixed-Time (Manhattan)** | Webster (1958) | 38.19 | 103 | 42s | 26s |
+| **Demand Actuated** | SCATS (1990) | 30.30 | 83 | 36s | **25s** |
+| **Max-Pressure** | Varaiya (2013) | 27.97 | 76 | 32s | **25s** |
+| **PressLight** | Wei et al., ACM KDD (2019) | 26.38 | 71 | 33s | **25s** |
+| **EVP-DRL** | Lin et al., TR-C (2023) | 28.48 | 77 | **15s** | 71s (Severe Shockwave) |
+| **AURA (Proposed)** | Safe MARL + Momentum | **26.33 (-31.0%)** | **69 (-33.0%)** | 16s (-61.9%) | **31s (2.2x Faster Recovery)** |
 
 ---
 

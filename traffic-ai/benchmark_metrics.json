@@ -14,11 +14,25 @@
     "recovery_time": 20
   },
   "max_pressure": {
-    "name": "Max-Pressure",
+    "name": "Max-Pressure (2013)",
     "ev_clearance": 30,
     "avg_queue": 0.758,
     "max_queue": 4,
     "recovery_time": 30
+  },
+  "presslight_2019": {
+    "name": "PressLight (KDD 2019)",
+    "ev_clearance": 31,
+    "avg_queue": 0.814,
+    "max_queue": 4,
+    "recovery_time": 20
+  },
+  "evp_drl_2023": {
+    "name": "EVP-DRL (Lin 2023)",
+    "ev_clearance": 30,
+    "avg_queue": 0.775,
+    "max_queue": 4,
+    "recovery_time": 20
   },
   "aura": {
     "name": "AURA (Proposed)",

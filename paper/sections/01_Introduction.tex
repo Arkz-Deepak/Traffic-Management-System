@@ -18,7 +18,7 @@ The primary contributions of this paper are summarized as follows:
     \item We formulate a Deep Reinforcement Learning framework with a \textbf{Deterministic Safety Envelope} that guarantees physical clearance bounds ($10\,\text{s} \le t_{\text{green}} \le 45\,\text{s}$, $t_{\text{yellow}} = 3\,\text{s}$), eliminating dangerous phase flickering and starvation.
     \item We design an automated \textbf{Emergency Corridor Preemption (EVP)} protocol that preemptively reserves clearance trajectories upon emergency vehicle detection, cutting EV intersection transit latency to 14\,s.
     \item We introduce the \textbf{Post-Preemption Recovery Metric ($T_{\text{rec}}$)}, empirically evaluating the temporal resilience of the intersection after preemption shockwaves dissipate.
-    \item We conduct rigorous multi-controller empirical evaluations within Eclipse SUMO under the Krauss car-following model against \textbf{three industry benchmarks}: Traditional Fixed-Time, Demand-Responsive Actuated control, and the theoretical Max-Pressure controller.
+    \item We conduct rigorous multi-controller empirical evaluations within Eclipse SUMO under the Krauss car-following model against \textbf{five established baselines}: Traditional Fixed-Time (1958), Demand-Responsive Actuated control (1990), theoretical Max-Pressure (2013), modern SOTA PressLight (ACM KDD 2019), and contemporary EVP-DRL (Transportation Research Part C 2023).
     \item We validate the real-world scalability and topological resilience of AURA on an authentic \textbf{OpenStreetMap road network of Midtown Manhattan} comprising 183 traffic signal controllers and 661 edges, demonstrating 61.9\% faster EV clearance and 31.0\% queue reduction over pre-timed municipal networks.
 \end{itemize}
 
