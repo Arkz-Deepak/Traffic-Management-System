@@ -1,0 +1,30 @@
+{
+  "fixed_time": {
+    "name": "Fixed-Time (30s)",
+    "ev_clearance": 29,
+    "avg_queue": 2.018,
+    "max_queue": 8,
+    "recovery_time": 31
+  },
+  "actuated": {
+    "name": "Actuated Controller",
+    "ev_clearance": 34,
+    "avg_queue": 0.808,
+    "max_queue": 5,
+    "recovery_time": 20
+  },
+  "max_pressure": {
+    "name": "Max-Pressure",
+    "ev_clearance": 30,
+    "avg_queue": 0.758,
+    "max_queue": 4,
+    "recovery_time": 30
+  },
+  "aura": {
+    "name": "AURA (Proposed)",
+    "ev_clearance": 14,
+    "avg_queue": 0.851,
+    "max_queue": 6,
+    "recovery_time": 20
+  }
+}

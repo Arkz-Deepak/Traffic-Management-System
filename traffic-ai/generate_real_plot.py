@@ -3,16 +3,26 @@ import sys
 import numpy as np
 import torch
 import torch.nn as nn
+
+# Ensure SUMO is linked before importing traci
+if 'SUMO_HOME' in os.environ:
+    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
+    if tools not in sys.path:
+        sys.path.append(tools)
+else:
+    default_sumo_home = '/usr/share/sumo'
+    if os.path.exists(default_sumo_home):
+        os.environ['SUMO_HOME'] = default_sumo_home
+        tools = os.path.join(default_sumo_home, 'tools')
+        if tools not in sys.path:
+            sys.path.append(tools)
+    else:
+        sys.exit("Please declare environment variable 'SUMO_HOME'")
+
 import traci
 import matplotlib.pyplot as plt
 
-# Ensure SUMO is linked
-if 'SUMO_HOME' in os.environ:
-    tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
-    sys.path.append(tools)
-else:
-    sys.exit("Please declare environment variable 'SUMO_HOME'")
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LANE_IDS = ["top0A0", "right0A0", "bottom0A0", "left0A0"]
 TRAFFIC_LIGHT_ID = "A0"
 SIM_STEPS = 1000  # We will test both models over 1,000 seconds of traffic
@@ -30,8 +40,17 @@ class TrafficDQN(nn.Module):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = TrafficDQN(4, 4).to(device)
-model.load_state_dict(torch.load("traffic_rl_model_final.pth"))
-model.eval()
+
+model_path = os.path.join(BASE_DIR, "traffic_rl_model_final.pth")
+if not os.path.exists(model_path):
+    model_path = os.path.join(BASE_DIR, "traffic_rl_model.pth")
+
+if os.path.exists(model_path):
+    model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
+    model.eval()
+    print(f"✅ Loaded model weights from: {os.path.basename(model_path)}")
+else:
+    print("⚠️ No model weights found, using initialized weights.")
 
 def get_state():
     return [traci.edge.getLastStepHaltingNumber(l) for l in LANE_IDS]
@@ -42,7 +61,8 @@ def get_total_queue():
 # --- Test 1: The "Dumb" Fixed Time Controller ---
 def evaluate_fixed_time():
     print("🚦 Running baseline Fixed-Time simulation (30s phases)...")
-    traci.start(["sumo", "-c", "network_config.sumocfg", "--no-step-log", "true"])
+    sumo_cfg = os.path.join(BASE_DIR, "network_config.sumocfg")
+    traci.start(["sumo", "-c", sumo_cfg, "--no-step-log", "true"])
     
     queue_history = []
     # Standard 4-phase cycle: 30s Green NS, 3s Yellow, 30s Green EW, 3s Yellow
@@ -67,8 +87,9 @@ def evaluate_fixed_time():
 
 # --- Test 2: Your Trained RL Agent ---
 def evaluate_ai_model():
-    print("🧠 Running VisionX AI Model simulation...")
-    traci.start(["sumo", "-c", "network_config.sumocfg", "--no-step-log", "true"])
+    print("🧠 Running VisionX / AURA AI Model simulation...")
+    sumo_cfg = os.path.join(BASE_DIR, "network_config.sumocfg")
+    traci.start(["sumo", "-c", sumo_cfg, "--no-step-log", "true"])
     
     queue_history = []
     step = 0
@@ -124,7 +145,7 @@ if __name__ == "__main__":
         return np.convolve(y, box, mode='same')
         
     plt.plot(smooth(fixed_queues, 10), label='Traditional Fixed-Time (30s)', color='#e74c3c', linewidth=2, linestyle='--')
-    plt.plot(smooth(ai_queues, 10), label='VisionX RL Model', color='#2ecc71', linewidth=3)
+    plt.plot(smooth(ai_queues, 10), label='VisionX / AURA RL Model', color='#2ecc71', linewidth=3)
     
     plt.fill_between(range(SIM_STEPS), smooth(ai_queues, 10), color='#2ecc71', alpha=0.2)
     
@@ -134,7 +155,7 @@ if __name__ == "__main__":
     plt.legend(fontsize=12)
     plt.xlim(0, SIM_STEPS)
     
-    # Save the actual, non-fake plot
+    output_plot = os.path.join(BASE_DIR, 'real_ai_comparison.png')
     plt.tight_layout()
-    plt.savefig('real_ai_comparison.png', dpi=300)
-    print("✅ Done! Plot saved as 'real_ai_comparison.png'")
+    plt.savefig(output_plot, dpi=300)
+    print(f"✅ Done! Plot saved as: {output_plot}")

@@ -1,0 +1,13 @@
+<configuration>
+    <input>
+        <net-file value="marl_grid.net.xml"/>
+        <route-files value="marl_routes.rou.xml,ambulance.rou.xml"/>
+    </input>
+    <time>
+        <begin value="0"/>
+        <end value="3600"/>
+    </time>
+    <processing>
+        <time-to-teleport value="-1"/>
+    </processing>
+</configuration>

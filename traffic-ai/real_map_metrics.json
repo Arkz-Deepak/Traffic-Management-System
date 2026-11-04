@@ -1,0 +1,30 @@
+{
+  "fixed_time": {
+    "name": "Fixed-Time (Manhattan)",
+    "ev_clearance": 42,
+    "avg_queue": 38.185,
+    "max_queue": 103,
+    "recovery_time": 26
+  },
+  "actuated": {
+    "name": "Actuated Controller",
+    "ev_clearance": 36,
+    "avg_queue": 30.3,
+    "max_queue": 83,
+    "recovery_time": 25
+  },
+  "max_pressure": {
+    "name": "Max-Pressure",
+    "ev_clearance": 32,
+    "avg_queue": 27.97,
+    "max_queue": 76,
+    "recovery_time": 25
+  },
+  "aura": {
+    "name": "AURA (Proposed)",
+    "ev_clearance": 16,
+    "avg_queue": 26.331666666666667,
+    "max_queue": 69,
+    "recovery_time": 31
+  }
+}

@@ -6,14 +6,25 @@ import collections
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import traci
 
+# Ensure SUMO tools path is set BEFORE importing traci
 if 'SUMO_HOME' in os.environ:
     tools = os.path.join(os.environ['SUMO_HOME'], 'tools')
-    sys.path.append(tools)
+    if tools not in sys.path:
+        sys.path.append(tools)
 else:
-    sys.exit("Please declare environment variable 'SUMO_HOME'")
+    default_sumo_home = '/usr/share/sumo'
+    if os.path.exists(default_sumo_home):
+        os.environ['SUMO_HOME'] = default_sumo_home
+        tools = os.path.join(default_sumo_home, 'tools')
+        if tools not in sys.path:
+            sys.path.append(tools)
+    else:
+        sys.exit("Please declare environment variable 'SUMO_HOME'")
 
+import traci
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LANE_IDS = ["top0A0", "right0A0", "bottom0A0", "left0A0"]
 TRAFFIC_LIGHT_ID = "A0"
 
@@ -71,39 +82,54 @@ def train_model():
 
 def run_training():
     global epsilon
-    traci.start(["sumo", "-c", "network_config.sumocfg", "--no-step-log", "true"])
-    print(f"🚀 Training Brain on {device}...")
+    sumo_cfg = os.path.join(BASE_DIR, "network_config.sumocfg")
+    use_gui = os.environ.get("SUMO_GUI", "0") == "1" and bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+    sumo_binary = "sumo-gui" if use_gui else "sumo"
+
+    print(f"🚀 Training Brain on {device} using {sumo_binary}...")
+    traci.start([sumo_binary, "-c", sumo_cfg, "--no-step-log", "true"])
 
     state, step, total_reward = get_state(), 0, 0
+    save_path = os.path.join(BASE_DIR, "traffic_rl_model_final.pth")
 
-    while step < 3000:
-        action = random.randint(0, 3) if random.random() < epsilon else model(torch.FloatTensor(state).to(device)).argmax().item()
-        target_phase = 0 if action in [0, 2] else 2
-        current_phase = traci.trafficlight.getPhase(TRAFFIC_LIGHT_ID)
+    try:
+        while step < 3000:
+            action = random.randint(0, 3) if random.random() < epsilon else model(torch.FloatTensor(state).to(device)).argmax().item()
+            target_phase = 0 if action in [0, 2] else 2
+            current_phase = traci.trafficlight.getPhase(TRAFFIC_LIGHT_ID)
 
-        if current_phase != target_phase:
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, 1 if current_phase == 0 else 3)
-            for _ in range(3): traci.simulationStep()
+            if current_phase != target_phase:
+                traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, 1 if current_phase == 0 else 3)
+                for _ in range(3): traci.simulationStep()
 
-        traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, target_phase)
-        green_duration = max(10, min(int((state[0]+state[2] if target_phase == 0 else state[1]+state[3]) * 2), 45))
-        for _ in range(green_duration): traci.simulationStep()
+            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, target_phase)
+            green_duration = max(10, min(int((state[0]+state[2] if target_phase == 0 else state[1]+state[3]) * 2), 45))
+            for _ in range(green_duration): traci.simulationStep()
 
-        next_state = get_state()
-        reward = -sum(next_state) + ((sum(state) - sum(next_state)) * 2)
-        
-        memory.push(state, action, reward, next_state)
-        train_model()
+            next_state = get_state()
+            reward = -sum(next_state) + ((sum(state) - sum(next_state)) * 2)
+            
+            memory.push(state, action, reward, next_state)
+            train_model()
 
-        state = next_state
-        total_reward += reward
-        step += 1
-        epsilon = max(epsilon_min, epsilon * epsilon_decay)
+            state = next_state
+            total_reward += reward
+            step += 1
+            epsilon = max(epsilon_min, epsilon * epsilon_decay)
 
-        if step % 50 == 0:
-            torch.save(model.state_dict(), "traffic_rl_model_final.pth")
-            print(f"Step {step} | Reward: {total_reward:.1f} | Eps: {epsilon:.2f}")
-            total_reward = 0
-    traci.close()
+            if step % 50 == 0:
+                torch.save(model.state_dict(), save_path)
+                print(f"Step {step} | Reward: {total_reward:.1f} | Eps: {epsilon:.2f} | Model Saved")
+                total_reward = 0
+    except KeyboardInterrupt:
+        print("\n🛑 Training interrupted by user.")
+    finally:
+        try:
+            torch.save(model.state_dict(), save_path)
+            traci.close()
+            print(f"🏁 Final model saved to {save_path}")
+        except Exception:
+            pass
 
-if __name__ == "__main__": run_training()
+if __name__ == "__main__":
+    run_training()

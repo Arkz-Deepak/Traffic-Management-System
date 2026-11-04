@@ -1,0 +1,87 @@
+\section{Methodology}
+\label{sec:methodology}
+
+The AURA architecture decouples perceptual sensing, policy learning, and safety-critical execution into dedicated micro-layers, as illustrated in Fig.~\ref{fig:architecture}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=1.1cm and 0.8cm,
+    block/.style={rectangle, draw=black!80, fill=blue!8, thick, minimum width=2.4cm, minimum height=0.8cm, align=center, rounded corners=3pt, font=\footnotesize},
+    safety/.style={rectangle, draw=red!80, fill=red!10, thick, minimum width=2.4cm, minimum height=0.8cm, align=center, rounded corners=3pt, font=\footnotesize},
+    highlight/.style={rectangle, draw=emerald!80, fill=emerald!10, thick, minimum width=2.4cm, minimum height=0.8cm, align=center, rounded corners=3pt, font=\footnotesize},
+    line/.style={draw, -latex, thick}
+]
+    \node[block] (sensors) {Sensory Ingestion\\(CCTV / TraCI Queues)};
+    \node[block, right=of sensors] (dqn) {DQN Policy Engine\\(64-Neuron MLP)};
+    \node[safety, right=of dqn] (envelope) {Deterministic\\Safety Envelope};
+    \node[block, below=of envelope] (tls) {Physical Signal\\Actuation (A0)};
+    \node[highlight, below=of sensors] (evp) {Emergency\\Preemption Unit};
+
+    \path[line] (sensors) -- node[above, font=\tiny] {$s_t \in \mathbb{R}^4$} (dqn);
+    \path[line] (dqn) -- node[above, font=\tiny] {$a_t \in \{0, 1\}$} (envelope);
+    \path[line] (envelope) -- node[right, font=\tiny] {$\Delta t_{\text{green}}, t_{\text{yellow}}$} (tls);
+    \path[line] (sensors) -- node[left, font=\tiny] {EV Flag} (evp);
+    \path[line, dashed, draw=red!80] (evp) -| node[above, font=\tiny, pos=0.3] {Preempt Signal} (envelope);
+\end{tikzpicture}
+\caption{The decoupled AURA architecture. The DQN policy selects discrete phase direction, while the Deterministic Safety Envelope mathematically bounds green allocations and enforces clearance intervals.}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Markov Decision Process (MDP) Formulation}
+We model intersection traffic management as a discrete-time Markov Decision Process defined by the tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$:
+
+\subsubsection{State Space ($\mathcal{S}$)}
+At each decision step $t$, the state vector $s_t \in \mathbb{R}^4$ captures the integer count of halted vehicles across the four incoming approaches of the intersection:
+\begin{equation}
+s_t = \begin{bmatrix} q_{\text{North}}, & q_{\text{East}}, & q_{\text{South}}, & q_{\text{West}} \end{bmatrix}^T
+\label{eq:state}
+\end{equation}
+By abstracting visual sensory feeds directly into lane queue vectors, we eliminate the high sample complexity associated with pixel-to-action reinforcement learning, allowing rapid policy convergence.
+
+\subsubsection{Action Space ($\mathcal{A}$)}
+The agent selects between the two conflicting green phases of the standard four-way junction:
+\begin{equation}
+a_t \in \{0, 1\} \quad \text{where} \quad 
+\begin{cases} 
+0 \implies \text{North-South (NS) Green} \\
+1 \implies \text{East-West (EW) Green}
+\end{cases}
+\label{eq:action}
+\end{equation}
+
+\subsubsection{Reward Function ($\mathcal{R}$)}
+The agent's objective is to maximize aggregate intersection throughput while actively driving down queue lengths. We formulate the immediate scalar reward $r_t$ as:
+\begin{equation}
+r_t = - \sum_{i=1}^{4} q_{i, t+1} + \lambda \cdot \max\left(0, \sum_{i=1}^{4} q_{i, t} - \sum_{i=1}^{4} q_{i, t+1} \right)
+\label{eq:reward}
+\end{equation}
+where the first term imposes an ongoing penalty proportional to overall waiting vehicles, and the second term provides a momentum bonus ($\lambda = 2.0$) whenever the agent successfully flushes accumulated queues.
+
+\subsection{Deterministic Safety Envelope}
+\label{sec:safety_envelope}
+Standard unconstrained DRL controllers risk outputting dangerously brief green windows that induce driver confusion or collision hazards. To guarantee operational safety, AURA wraps the policy in a deterministic physical envelope:
+\begin{equation}
+\Delta t_{\text{green}}(s_t, a_t) = \max\Big(t_{\min}, \, \min\big(2 \cdot q_{\text{active}}(s_t, a_t), \, t_{\max}\big)\Big)
+\label{eq:envelope}
+\end{equation}
+where $t_{\min} = 10\,\text{s}$ enforces the statutory minimum clearance time for queued vehicles to accelerate from a standstill, and $t_{\max} = 45\,\text{s}$ prevents runaway monopolization by a congested arterial. Furthermore, whenever $a_t \ne a_{t-1}$, a deterministic 3-second yellow clearance interval $t_{\text{yellow}} = 3\,\text{s}$ is strictly executed before activating the conflicting green phase:
+\begin{equation}
+\text{Phase Sequence:} \quad a_{t-1} \xrightarrow{t_{\text{yellow}} = 3\text{s}} a_t \xrightarrow{\Delta t_{\text{green}}} a_{t+1}
+\end{equation}
+
+\subsection{Deep Q-Network Optimization and Experience Replay}
+We parameterize the action-value function $Q(s, a; \theta)$ using a multi-layer perceptron with two fully-connected hidden layers containing 64 neurons each with Rectified Linear Unit (ReLU) activations. Network parameters $\theta$ are trained by minimizing the Mean Squared Error (MSE) loss:
+\begin{equation}
+\mathcal{L}(\theta) = \mathbb{E}_{(s, a, r, s') \sim \mathcal{D}} \left[ \left( r + \gamma \max_{a'} Q(s', a'; \theta^-) - Q(s, a; \theta) \right)^2 \right]
+\label{eq:loss}
+\end{equation}
+where $\gamma = 0.95$ denotes the discount factor, and $\theta^-$ represents a periodically synchronized target network. Transitions $(s_t, a_t, r_t, s_{t+1})$ are stored in an Experience Replay buffer $\mathcal{D}$ of capacity $N = 5{,}000$. Mini-batches of size $B = 64$ are uniformly sampled to break temporal correlations between sequential traffic states. Exploration follows an $\epsilon$-greedy policy decaying from $\epsilon_0 = 1.0$ to $\epsilon_{\min} = 0.05$ with decay rate $\beta = 0.992$.
+
+\subsection{Emergency Vehicle Preemption (EVP) and Post-Clearance Recovery}
+When an oncoming emergency vehicle is flagged on corridor $c_{\text{EV}}$, the normal policy selection is interrupted by the EVP unit:
+\begin{enumerate}
+    \item \textbf{Preemptive Yellow Transition:} The active phase is immediately transitioned to yellow ($3\,\text{s}$) if not currently serving $c_{\text{EV}}$.
+    \item \textbf{Dedicated EV Green Corridor:} Green is held exclusively for corridor $c_{\text{EV}}$ until the vehicle clears the intersection box.
+    \item \textbf{Post-Preemption Re-entry:} Once cleared, the state vector $s_{\text{post}}$ captures the accumulated cross-corridor backlog. The momentum term in Eq.~\eqref{eq:reward} immediately incentivizes the agent to allocate prolonged green time to the starved cross-streets, suppressing long-term shockwaves.
+\end{enumerate}

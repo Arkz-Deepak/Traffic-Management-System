@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <vType id="ambulance_type" vClass="emergency" guiShape="emergency" color="red" maxSpeed="25.0" accel="3.5" decel="5.0" speedFactor="1.5"/>
+    
+    <!-- Arterial Corridor 0 (A0 -> B0 -> C0 -> D0 -> E0) -->
+    <route id="corridor_row0" edges="left0A0 A0B0 B0C0 C0D0 D0E0 E0right0"/>
+    
+    <!-- Arterial Corridor 1 (A1 -> B1 -> C1 -> D1 -> E1) -->
+    <route id="corridor_row1" edges="left1A1 A1B1 B1C1 C1D1 D1E1 E1right1"/>
+
+    <!-- Default Ambulance (spawned at t=50s on corridor_row0) -->
+    <vehicle id="vip_ambulance" type="ambulance_type" route="corridor_row0" depart="50.0" departLane="best"/>
+</routes>
