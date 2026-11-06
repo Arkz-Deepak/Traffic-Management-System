@@ -429,10 +429,21 @@ def run_aura():
         
         inc = get_incoming_queues()
         
-        # Emergency Preemption Logic
+        # SMDP Decision Logic with Post-Preemption Shockwave Mitigation
         if is_ambulance_present:
-            target_phase = 0 # Force NS green for ambulance
+            target_phase = 0 # Priority preemption along North-South corridor
             green_duration = 10
+        elif ambulance_clear_time is not None and (step - ambulance_clear_time) < 45:
+            # Post-Preemption Momentum Recovery Phase:
+            # Cross-streets were starved during preemption; actively prioritize clearing the shockwave!
+            cross_q = inc[1] + inc[3]
+            arterial_q = inc[0] + inc[2]
+            if cross_q >= 4:
+                target_phase = 2 # Actively flush cross-street backlog!
+                green_duration = max(10, min(int(cross_q * 2.2), 45))
+            else:
+                target_phase = 0 if arterial_q >= cross_q else 2
+                green_duration = max(10, min(int(max(arterial_q, cross_q) * 2), 40))
         else:
             state_tensor = torch.FloatTensor(np.array(inc, dtype=np.float32)).to(device)
             with torch.no_grad():

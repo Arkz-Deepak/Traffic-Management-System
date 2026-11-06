@@ -1,7 +1,7 @@
 <configuration>
     <input>
         <net-file value="manhattan.net.xml"/>
-        <route-files value="manhattan_routes.rou.xml"/>
+        <route-files value="manhattan_dense_routes.rou.xml"/>
     </input>
     <time>
         <begin value="0"/>
