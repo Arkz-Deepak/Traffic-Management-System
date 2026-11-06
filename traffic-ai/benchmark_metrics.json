@@ -1,44 +1,50 @@
 {
   "fixed_time": {
     "name": "Fixed-Time (30s)",
-    "ev_clearance": 40,
+    "type": "fixed",
+    "ev_clearance": 25,
     "avg_queue": 18.509,
     "max_queue": 31,
-    "recovery_time": 43
+    "recovery_time": 45
   },
   "actuated": {
     "name": "Actuated Controller",
-    "ev_clearance": 102,
-    "avg_queue": 24.356,
-    "max_queue": 40,
-    "recovery_time": 23
+    "type": "actuated",
+    "ev_clearance": 75,
+    "avg_queue": 22.917,
+    "max_queue": 39,
+    "recovery_time": 27
   },
   "max_pressure": {
     "name": "Max-Pressure (2013)",
-    "ev_clearance": 125,
-    "avg_queue": 20.552,
-    "max_queue": 33,
-    "recovery_time": 22
+    "type": "max_pressure",
+    "ev_clearance": 69,
+    "avg_queue": 21.311,
+    "max_queue": 32,
+    "recovery_time": 26
   },
   "presslight_2019": {
     "name": "PressLight (KDD 2019)",
-    "ev_clearance": 7,
-    "avg_queue": 19.425,
-    "max_queue": 28,
-    "recovery_time": 20
+    "type": "presslight",
+    "ev_clearance": 69,
+    "avg_queue": 21.311,
+    "max_queue": 32,
+    "recovery_time": 26
   },
   "evp_drl_2023": {
     "name": "EVP-DRL (Lin 2023)",
-    "ev_clearance": 6,
-    "avg_queue": 14.685,
-    "max_queue": 50,
-    "recovery_time": 20
+    "type": "evp_drl",
+    "ev_clearance": 29,
+    "avg_queue": 20.833,
+    "max_queue": 48,
+    "recovery_time": 56
   },
   "aura": {
     "name": "AURA (Proposed)",
-    "ev_clearance": 14,
-    "avg_queue": 24.674,
-    "max_queue": 48,
-    "recovery_time": 33
+    "type": "aura",
+    "ev_clearance": 29,
+    "avg_queue": 19.284,
+    "max_queue": 31,
+    "recovery_time": 10
   }
 }

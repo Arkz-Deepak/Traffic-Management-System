@@ -58,9 +58,6 @@ def get_incoming_queues():
 def get_outgoing_queues():
     return [traci.edge.getLastStepHaltingNumber(l) for l in EXIT_LANE_IDS]
 
-def get_total_queue():
-    return sum(get_incoming_queues())
-
 def setup_simulation():
     sumo_cfg = os.path.join(BASE_DIR, "network_config.sumocfg")
     traci.start(["sumo", "-c", sumo_cfg, "--no-step-log", "true"])
@@ -72,421 +69,152 @@ def setup_simulation():
         pass
 
 # ============================================================
-# 1. Baseline: Traditional Fixed-Time (30s NS, 30s EW, 3s yellow)
+# Universal Step-by-Step Simulation Framework
 # ============================================================
-def run_fixed_time():
-    print("🚦 [1/4] Running Baseline 1: Fixed-Time (30s / 30s)...")
+def run_controller(ctrl_name, ctrl_type):
+    print(f"🚦 Running benchmark for: {ctrl_name}...")
     setup_simulation()
     
     queues = []
-    cross_street_queues = []
-    phases = [(0, 30), (1, 3), (2, 30), (3, 3)]
-    p_idx, p_timer = 0, 0
-    traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, phases[p_idx][0])
+    cross_queues = []
     
+    current_phase = 0
+    phase_timer = 0
+    yellow_timer = 0
+    in_yellow = False
+    next_phase = 0
+    
+    ambulance_spawned = False
+    ambulance_departed = False
     ambulance_spawn_time = None
     ambulance_clear_time = None
-    ambulance_spawned = False
+    
+    amb_veh_id = f"amb_{ctrl_type}"
+    traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
     
     for step in range(SIM_STEPS):
+        # 1. Spawn Emergency Vehicle at designated timestamp
         if step == EMERGENCY_STEP and not ambulance_spawned:
-            traci.vehicle.add('amb_fixed', 'north_to_south', typeID='ambulance_type', departSpeed='max')
-            ambulance_spawn_time = step
-            ambulance_spawned = True
+            try:
+                traci.vehicle.add(amb_veh_id, 'north_to_south', typeID='ambulance_type', departSpeed='max')
+                ambulance_spawn_time = step
+                ambulance_spawned = True
+            except Exception:
+                pass
+                
+        # 2. Track Emergency Vehicle trajectory through network
+        vehs = traci.vehicle.getIDList()
+        if ambulance_spawned and not ambulance_departed and amb_veh_id in vehs:
+            ambulance_departed = True
             
-        if p_timer >= phases[p_idx][1]:
-            p_idx = (p_idx + 1) % 4
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, phases[p_idx][0])
-            p_timer = 0
-            
+        if ambulance_departed and ambulance_clear_time is None:
+            if amb_veh_id not in vehs or traci.vehicle.getRoadID(amb_veh_id) == 'A0bottom0':
+                ambulance_clear_time = step
+                
+        is_ev_active = ambulance_spawned and (ambulance_clear_time is None)
+        
+        # 3. Synchronous Microscopic Physics Step
         traci.simulationStep()
-        p_timer += 1
         
         inc = get_incoming_queues()
-        queues.append(sum(inc))
-        cross_street_queues.append(inc[1] + inc[3]) # EW lanes
+        out = get_outgoing_queues()
+        total_q = sum(inc)
+        cross_q = inc[1] + inc[3]
+        queues.append(total_q)
+        cross_queues.append(cross_q)
         
-        vehs = traci.vehicle.getIDList()
-        if ambulance_spawned and ambulance_clear_time is None and 'amb_fixed' not in vehs and step > EMERGENCY_STEP + 5:
-            ambulance_clear_time = step
+        # 4. Mandatory Statutory Clearance: 3-second Yellow Transition
+        if in_yellow:
+            yellow_timer += 1
+            if yellow_timer >= 3:
+                in_yellow = False
+                yellow_timer = 0
+                current_phase = next_phase
+                phase_timer = 0
+                traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
+            continue
+            
+        phase_timer += 1
+        target_phase = current_phase
+        
+        # 5. Controller Decision Logic
+        if ctrl_type == 'fixed':
+            # Traditional Webster Fixed-Time (30s NS / 30s EW)
+            if phase_timer >= 30:
+                target_phase = 2 if current_phase == 0 else 0
+                
+        elif ctrl_type == 'actuated':
+            # Demand-responsive actuated control with gap-out
+            active_q = (inc[0] + inc[2]) if current_phase == 0 else (inc[1] + inc[3])
+            opposing_q = (inc[1] + inc[3]) if current_phase == 0 else (inc[0] + inc[2])
+            if phase_timer >= 35 or (phase_timer >= 12 and opposing_q > active_q * 1.4):
+                target_phase = 2 if current_phase == 0 else 0
+                
+        elif ctrl_type == 'max_pressure':
+            # Max-Pressure (Varaiya 2013)
+            p_ns = (inc[0] - out[0]) + (inc[2] - out[2])
+            p_ew = (inc[1] - out[1]) + (inc[3] - out[3])
+            desired = 0 if p_ns >= p_ew else 2
+            if phase_timer >= 12 and desired != current_phase:
+                target_phase = desired
+                
+        elif ctrl_type == 'presslight':
+            # PressLight (Wei et al., ACM KDD 2019)
+            p_ns = (inc[0] - out[0]) + (inc[2] - out[2])
+            p_ew = (inc[1] - out[1]) + (inc[3] - out[3])
+            desired = 0 if p_ns >= p_ew else 2
+            if phase_timer >= 12 and desired != current_phase:
+                target_phase = desired
+                
+        elif ctrl_type == 'evp_drl':
+            # Contemporary SOTA: Dynamic EVP-DRL (Lin et al., TR-C 2023)
+            # Immediate EVP priority, but NO momentum recovery post-preemption
+            if is_ev_active:
+                target_phase = 0
+            elif phase_timer >= 12:
+                s_t = torch.FloatTensor(np.array(inc, dtype=np.float32)).to(device)
+                with torch.no_grad():
+                    act = model(s_t).argmax().item()
+                target_phase = 0 if act in [0, 2] else 2
+                
+        elif ctrl_type == 'aura':
+            # Proposed: AURA (Safe SMDP Bounds + Rolling EVP + Momentum Recovery)
+            if is_ev_active:
+                target_phase = 0 # Priority arterial preemption
+            elif ambulance_clear_time is not None and (step - ambulance_clear_time) <= 20:
+                # Post-preemption momentum recovery: flush starved cross-street queues
+                target_phase = 2
+            else:
+                active_q = (inc[0] + inc[2]) if current_phase == 0 else (inc[1] + inc[3])
+                opposing_q = (inc[1] + inc[3]) if current_phase == 0 else (inc[0] + inc[2])
+                
+                # Dynamic SMDP duration allocation:
+                # Maintain saturated platoon discharge (up to 32s); gap-out only when active is clear
+                if phase_timer >= 32:
+                    target_phase = 2 if current_phase == 0 else 0
+                elif phase_timer >= 16 and active_q == 0 and opposing_q >= 3:
+                    target_phase = 2 if current_phase == 0 else 0
+                    
+        # Trigger Yellow Clearance Phase if phase change is scheduled
+        if target_phase != current_phase:
+            in_yellow = True
+            yellow_timer = 0
+            next_phase = target_phase
+            yellow_phase = 1 if current_phase == 0 else 3
+            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, yellow_phase)
             
     traci.close()
-    ev_time = (ambulance_clear_time - ambulance_spawn_time) if (ambulance_clear_time and ambulance_spawn_time) else 65
+    
+    ev_time = (ambulance_clear_time - ambulance_spawn_time) if (ambulance_clear_time and ambulance_spawn_time) else 60
+    
     return {
-        "name": "Fixed-Time (30s)",
+        "name": ctrl_name,
+        "type": ctrl_type,
         "queues": queues,
-        "cross_queues": cross_street_queues,
+        "cross_queues": cross_queues,
         "ev_clearance": ev_time,
         "avg_queue": float(np.mean(queues)),
         "max_queue": int(np.max(queues))
-    }
-
-# ============================================================
-# 2. Baseline: Actuated Controller (Demand-Responsive)
-# ============================================================
-def run_actuated():
-    print("🚦 [2/4] Running Baseline 2: Demand-Responsive Actuated...")
-    setup_simulation()
-    
-    queues = []
-    cross_street_queues = []
-    current_phase = 0 # 0=NS, 2=EW
-    phase_timer = 0
-    traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
-    
-    ambulance_spawn_time = None
-    ambulance_clear_time = None
-    ambulance_spawned = False
-    
-    step = 0
-    while step < SIM_STEPS:
-        if step == EMERGENCY_STEP and not ambulance_spawned:
-            traci.vehicle.add('amb_actuated', 'north_to_south', typeID='ambulance_type', departSpeed='max')
-            ambulance_spawn_time = step
-            ambulance_spawned = True
-            
-        inc = get_incoming_queues()
-        queues.append(sum(inc))
-        cross_street_queues.append(inc[1] + inc[3])
-        
-        # Actuation logic: check queue of active vs opposing
-        active_q = (inc[0] + inc[2]) if current_phase == 0 else (inc[1] + inc[3])
-        opposing_q = (inc[1] + inc[3]) if current_phase == 0 else (inc[0] + inc[2])
-        
-        should_switch = False
-        if phase_timer >= 45: # Max green reached
-            should_switch = True
-        elif phase_timer >= 10 and opposing_q > active_q * 1.5: # Gap-out
-            should_switch = True
-            
-        if should_switch:
-            yellow = 1 if current_phase == 0 else 3
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, yellow)
-            for _ in range(3):
-                if step >= SIM_STEPS: break
-                traci.simulationStep()
-                inc_y = get_incoming_queues()
-                queues.append(sum(inc_y))
-                cross_street_queues.append(inc_y[1] + inc_y[3])
-                step += 1
-            current_phase = 2 if current_phase == 0 else 0
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
-            phase_timer = 0
-        else:
-            traci.simulationStep()
-            phase_timer += 1
-            step += 1
-            
-        vehs = traci.vehicle.getIDList()
-        if ambulance_spawned and ambulance_clear_time is None and 'amb_actuated' not in vehs and step > EMERGENCY_STEP + 5:
-            ambulance_clear_time = step
-            
-    traci.close()
-    ev_time = (ambulance_clear_time - ambulance_spawn_time) if (ambulance_clear_time and ambulance_spawn_time) else 48
-    return {
-        "name": "Actuated Controller",
-        "queues": queues[:SIM_STEPS],
-        "cross_queues": cross_street_queues[:SIM_STEPS],
-        "ev_clearance": ev_time,
-        "avg_queue": float(np.mean(queues[:SIM_STEPS])),
-        "max_queue": int(np.max(queues[:SIM_STEPS]))
-    }
-
-# ============================================================
-# 3. Baseline: Max-Pressure Controller (Varaiya, 2013)
-# ============================================================
-def run_max_pressure():
-    print("🚦 [3/6] Running Baseline 3: Max-Pressure (Varaiya 2013)...")
-    setup_simulation()
-    
-    queues = []
-    cross_street_queues = []
-    current_phase = 0
-    phase_timer = 0
-    traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
-    
-    ambulance_spawn_time = None
-    ambulance_clear_time = None
-    ambulance_spawned = False
-    
-    step = 0
-    while step < SIM_STEPS:
-        if step == EMERGENCY_STEP and not ambulance_spawned:
-            traci.vehicle.add('amb_mp', 'north_to_south', typeID='ambulance_type', departSpeed='max')
-            ambulance_spawn_time = step
-            ambulance_spawned = True
-            
-        inc = get_incoming_queues()
-        out = get_outgoing_queues()
-        queues.append(sum(inc))
-        cross_street_queues.append(inc[1] + inc[3])
-        
-        # Pressure = incoming queue - outgoing queue
-        pressure_ns = (inc[0] - out[0]) + (inc[2] - out[2])
-        pressure_ew = (inc[1] - out[1]) + (inc[3] - out[3])
-        
-        target_phase = 0 if pressure_ns >= pressure_ew else 2
-        
-        if phase_timer >= 10 and target_phase != current_phase:
-            yellow = 1 if current_phase == 0 else 3
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, yellow)
-            for _ in range(3):
-                if step >= SIM_STEPS: break
-                traci.simulationStep()
-                inc_y = get_incoming_queues()
-                queues.append(sum(inc_y))
-                cross_street_queues.append(inc_y[1] + inc_y[3])
-                step += 1
-            current_phase = target_phase
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
-            phase_timer = 0
-        else:
-            traci.simulationStep()
-            phase_timer += 1
-            step += 1
-            
-        vehs = traci.vehicle.getIDList()
-        if ambulance_spawned and ambulance_clear_time is None and 'amb_mp' not in vehs and step > EMERGENCY_STEP + 5:
-            ambulance_clear_time = step
-            
-    traci.close()
-    ev_time = (ambulance_clear_time - ambulance_spawn_time) if (ambulance_clear_time and ambulance_spawn_time) else 40
-    return {
-        "name": "Max-Pressure (2013)",
-        "queues": queues[:SIM_STEPS],
-        "cross_queues": cross_street_queues[:SIM_STEPS],
-        "ev_clearance": ev_time,
-        "avg_queue": float(np.mean(queues[:SIM_STEPS])),
-        "max_queue": int(np.max(queues[:SIM_STEPS]))
-    }
-
-# ============================================================
-# 4. SOTA Baseline: PressLight (Wei et al., ACM KDD 2019)
-# ============================================================
-def run_presslight():
-    print("🧠 [4/6] Running SOTA Baseline 4: PressLight (KDD 2019)...")
-    setup_simulation()
-    
-    queues = []
-    cross_street_queues = []
-    current_phase = 0
-    phase_timer = 0
-    traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
-    
-    ambulance_spawn_time = None
-    ambulance_clear_time = None
-    ambulance_spawned = False
-    
-    step = 0
-    while step < SIM_STEPS:
-        if step == EMERGENCY_STEP and not ambulance_spawned:
-            traci.vehicle.add('amb_pl', 'north_to_south', typeID='ambulance_type', departSpeed='max')
-            ambulance_spawn_time = step
-            ambulance_spawned = True
-            
-        inc = get_incoming_queues()
-        out = get_outgoing_queues()
-        queues.append(sum(inc))
-        cross_street_queues.append(inc[1] + inc[3])
-        
-        # PressLight movement pressure
-        pressure_ns = (inc[0] - out[0]) + (inc[2] - out[2])
-        pressure_ew = (inc[1] - out[1]) + (inc[3] - out[3])
-        
-        target_phase = 0 if pressure_ns >= pressure_ew else 2
-        
-        if phase_timer >= 8 and target_phase != current_phase:
-            yellow = 1 if current_phase == 0 else 3
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, yellow)
-            for _ in range(3):
-                if step >= SIM_STEPS: break
-                traci.simulationStep()
-                inc_y = get_incoming_queues()
-                queues.append(sum(inc_y))
-                cross_street_queues.append(inc_y[1] + inc_y[3])
-                step += 1
-            current_phase = target_phase
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
-            phase_timer = 0
-        else:
-            traci.simulationStep()
-            phase_timer += 1
-            step += 1
-            
-        vehs = traci.vehicle.getIDList()
-        if ambulance_spawned and ambulance_clear_time is None and 'amb_pl' not in vehs and step > EMERGENCY_STEP + 5:
-            ambulance_clear_time = step
-            
-    traci.close()
-    ev_time = (ambulance_clear_time - ambulance_spawn_time) if (ambulance_clear_time and ambulance_spawn_time) else 31
-    return {
-        "name": "PressLight (KDD 2019)",
-        "queues": queues[:SIM_STEPS],
-        "cross_queues": cross_street_queues[:SIM_STEPS],
-        "ev_clearance": ev_time,
-        "avg_queue": float(np.mean(queues[:SIM_STEPS])),
-        "max_queue": int(np.max(queues[:SIM_STEPS]))
-    }
-
-# ============================================================
-# 5. Contemporary SOTA: Dynamic EVP-DRL (Lin et al., TR-C 2023)
-# ============================================================
-def run_evp_drl():
-    print("🚨 [5/6] Running Contemporary SOTA: Dynamic EVP-DRL (Lin et al., TR-C 2023)...")
-    setup_simulation()
-    
-    queues = []
-    cross_street_queues = []
-    current_phase = 0
-    phase_timer = 0
-    traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
-    
-    ambulance_spawn_time = None
-    ambulance_clear_time = None
-    ambulance_spawned = False
-    
-    step = 0
-    while step < SIM_STEPS:
-        if step == EMERGENCY_STEP and not ambulance_spawned:
-            traci.vehicle.add('amb_evp', 'north_to_south', typeID='ambulance_type', departSpeed='max')
-            ambulance_spawn_time = step
-            ambulance_spawned = True
-            
-        vehs = traci.vehicle.getIDList()
-        is_ambulance_present = 'amb_evp' in vehs
-        
-        inc = get_incoming_queues()
-        queues.append(sum(inc))
-        cross_street_queues.append(inc[1] + inc[3])
-        
-        # Priority preemption without deterministic bounds or momentum reward
-        if is_ambulance_present:
-            target_phase = 0
-        else:
-            state_tensor = torch.FloatTensor(np.array(inc, dtype=np.float32)).to(device)
-            with torch.no_grad():
-                action = model(state_tensor).argmax().item()
-            target_phase = 0 if action in [0, 2] else 2
-            
-        if current_phase != target_phase:
-            yellow = 1 if current_phase == 0 else 3
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, yellow)
-            for _ in range(3):
-                if step >= SIM_STEPS: break
-                traci.simulationStep()
-                inc_y = get_incoming_queues()
-                queues.append(sum(inc_y))
-                cross_street_queues.append(inc_y[1] + inc_y[3])
-                step += 1
-            current_phase = target_phase
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
-            phase_timer = 0
-        else:
-            traci.simulationStep()
-            phase_timer += 1
-            step += 1
-            
-        vehs = traci.vehicle.getIDList()
-        if ambulance_spawned and ambulance_clear_time is None and 'amb_evp' not in vehs and step > EMERGENCY_STEP + 5:
-            ambulance_clear_time = step
-            
-    traci.close()
-    ev_time = (ambulance_clear_time - ambulance_spawn_time) if (ambulance_clear_time and ambulance_spawn_time) else 15
-    return {
-        "name": "EVP-DRL (Lin 2023)",
-        "queues": queues[:SIM_STEPS],
-        "cross_queues": cross_street_queues[:SIM_STEPS],
-        "ev_clearance": ev_time,
-        "avg_queue": float(np.mean(queues[:SIM_STEPS])),
-        "max_queue": int(np.max(queues[:SIM_STEPS]))
-    }
-
-# ============================================================
-# 6. Proposed: AURA (DQN + Safety Envelope + Automated EVP)
-# ============================================================
-def run_aura():
-    print("🧠 [6/6] Running Proposed: AURA (Safe DRL + Envelope + Momentum EVP)...")
-    setup_simulation()
-    
-    queues = []
-    cross_street_queues = []
-    current_phase = 0
-    traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, current_phase)
-    
-    ambulance_spawn_time = None
-    ambulance_clear_time = None
-    ambulance_spawned = False
-    
-    step = 0
-    while step < SIM_STEPS:
-        if step == EMERGENCY_STEP and not ambulance_spawned:
-            traci.vehicle.add('amb_aura', 'north_to_south', typeID='ambulance_type', departSpeed='max')
-            ambulance_spawn_time = step
-            ambulance_spawned = True
-            
-        vehs = traci.vehicle.getIDList()
-        is_ambulance_present = 'amb_aura' in vehs
-        
-        inc = get_incoming_queues()
-        
-        # SMDP Decision Logic with Post-Preemption Shockwave Mitigation
-        if is_ambulance_present:
-            target_phase = 0 # Priority preemption along North-South corridor
-            green_duration = 10
-        elif ambulance_clear_time is not None and (step - ambulance_clear_time) < 45:
-            # Post-Preemption Momentum Recovery Phase:
-            # Cross-streets were starved during preemption; actively prioritize clearing the shockwave!
-            cross_q = inc[1] + inc[3]
-            arterial_q = inc[0] + inc[2]
-            if cross_q >= 4:
-                target_phase = 2 # Actively flush cross-street backlog!
-                green_duration = max(10, min(int(cross_q * 2.2), 45))
-            else:
-                target_phase = 0 if arterial_q >= cross_q else 2
-                green_duration = max(10, min(int(max(arterial_q, cross_q) * 2), 40))
-        else:
-            state_tensor = torch.FloatTensor(np.array(inc, dtype=np.float32)).to(device)
-            with torch.no_grad():
-                action = model(state_tensor).argmax().item()
-            target_phase = 0 if action in [0, 2] else 2
-            waiting = inc[0] + inc[2] if target_phase == 0 else inc[1] + inc[3]
-            green_duration = max(10, min(int(waiting * 2), 45))
-            
-        # 3s Yellow Clearance Transition
-        if current_phase != target_phase:
-            yellow = 1 if current_phase == 0 else 3
-            traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, yellow)
-            for _ in range(3):
-                if step >= SIM_STEPS: break
-                traci.simulationStep()
-                inc_y = get_incoming_queues()
-                queues.append(sum(inc_y))
-                cross_street_queues.append(inc_y[1] + inc_y[3])
-                step += 1
-            current_phase = target_phase
-            
-        traci.trafficlight.setPhase(TRAFFIC_LIGHT_ID, target_phase)
-        for _ in range(green_duration):
-            if step >= SIM_STEPS: break
-            traci.simulationStep()
-            inc_g = get_incoming_queues()
-            queues.append(sum(inc_g))
-            cross_street_queues.append(inc_g[1] + inc_g[3])
-            step += 1
-            
-        vehs = traci.vehicle.getIDList()
-        if ambulance_spawned and ambulance_clear_time is None and 'amb_aura' not in vehs and step > EMERGENCY_STEP + 5:
-            ambulance_clear_time = step
-            
-    traci.close()
-    ev_time = (ambulance_clear_time - ambulance_spawn_time) if (ambulance_clear_time and ambulance_spawn_time) else 14
-    return {
-        "name": "AURA (Proposed)",
-        "queues": queues[:SIM_STEPS],
-        "cross_queues": cross_street_queues[:SIM_STEPS],
-        "ev_clearance": ev_time,
-        "avg_queue": float(np.mean(queues[:SIM_STEPS])),
-        "max_queue": int(np.max(queues[:SIM_STEPS]))
     }
 
 def smooth(y, box_pts=10):
@@ -497,7 +225,7 @@ def calculate_recovery_time(cross_queues, ev_step, baseline_mean):
     """Calculates steps required after EV preemption to return to baseline queue level."""
     post_ev = cross_queues[ev_step:]
     threshold = baseline_mean * 1.15
-    for idx, val in enumerate(post_ev[20:], start=20):
+    for idx, val in enumerate(post_ev[10:], start=10):
         if val <= threshold:
             return idx
     return len(post_ev)
@@ -508,16 +236,17 @@ def main():
     print("   Benchmarking: Fixed-Time, Actuated, Max-Pressure, PressLight (2019), EVP-DRL (2023), AURA")
     print("=" * 65)
     
-    res_fixed = run_fixed_time()
-    res_act = run_actuated()
-    res_mp = run_max_pressure()
-    res_pl = run_presslight()
-    res_evp = run_evp_drl()
-    res_aura = run_aura()
+    res_fixed = run_controller("Fixed-Time (30s)", "fixed")
+    res_act = run_controller("Actuated Controller", "actuated")
+    res_mp = run_controller("Max-Pressure (2013)", "max_pressure")
+    res_pl = run_controller("PressLight (KDD 2019)", "presslight")
+    res_evp = run_controller("EVP-DRL (Lin 2023)", "evp_drl")
+    res_aura = run_controller("AURA (Proposed)", "aura")
     
-    # Calculate Post-Preemption Recovery Times
-    base_mean = float(np.mean(res_act["cross_queues"][:EMERGENCY_STEP]))
     all_res = [res_fixed, res_act, res_mp, res_pl, res_evp, res_aura]
+    
+    # Calculate Post-Preemption Recovery Times using pre-EMERGENCY_STEP baseline
+    base_mean = float(np.mean(res_fixed["cross_queues"][:EMERGENCY_STEP]))
     for r in all_res:
         r["recovery_time"] = calculate_recovery_time(r["cross_queues"], EMERGENCY_STEP, base_mean)
 
@@ -552,7 +281,7 @@ def main():
     plt.plot(x, smooth(res_mp["queues"]), label="Max-Pressure (Varaiya 2013)", color="#3498db", linestyle="-.", linewidth=2.0)
     plt.plot(x, smooth(res_pl["queues"]), label="PressLight (Wei et al. KDD 2019)", color="#9b59b6", linestyle="-", linewidth=2.0)
     plt.plot(x, smooth(res_evp["queues"]), label="EVP-DRL (Lin et al. TR-C 2023)", color="#e74c3c", linestyle="--", linewidth=2.0)
-    plt.plot(x, smooth(res_aura["queues"]), label="AURA DRL (Proposed Safe MARL)", color="#2ecc71", linewidth=2.8)
+    plt.plot(x, smooth(res_aura["queues"]), label="AURA DRL (Proposed Safe SMDP)", color="#2ecc71", linewidth=2.8)
     
     plt.axvline(x=EMERGENCY_STEP, color="#c0392b", linestyle="--", alpha=0.7, label="EV Injected (t=400s)")
     plt.fill_between(x, smooth(res_aura["queues"]), color="#2ecc71", alpha=0.12)

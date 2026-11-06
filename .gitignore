@@ -12,6 +12,8 @@ env/
 .env/
 *.zip
 trips.trips.xml
+nvblas.conf
+*/nvblas.conf
 
 # =========================
 # Environment Variables

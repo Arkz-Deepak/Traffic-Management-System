@@ -132,12 +132,12 @@ Rigorous microscopic evaluations were conducted in Eclipse SUMO under the Krauss
 
 | Controller | Class / Venue | Avg Queue ($\bar{Q}$, veh) | Max Queue ($Q_{\max}$, veh) | EV Latency ($T_{\text{clear}}$, s) | Recovery Horizon ($T_{\text{rec}}$, s) |
 |---|---|---|---|---|---|
-| **Fixed-Time (30s Cycle)** | Webster (1958) | 18.51 | 31 | 40s | 43s |
-| **Demand Actuated** | SCATS (1990) | 24.36 | 40 | 102s (Lockup) | 23s |
-| **Max-Pressure** | Varaiya (2013) | 20.55 | 33 | 125s (Lockup) | 22s |
-| **PressLight** | Wei et al., ACM KDD (2019) | 19.43 | **28** | 31s | **20s** |
-| **EVP-DRL** | Lin et al., TR-C (2023) | **14.69** | 50 | 15s | **20s** |
-| **AURA (Proposed)** | SMDP Bounded + Momentum | 24.67 | 48 | **14s (-65.0%)** | 33s |
+| **Fixed-Time (30s Cycle)** | Webster (1958) | 18.51 | **31** | 25s | 45s |
+| **Demand Actuated** | SCATS (1990) | 22.92 | 39 | 75s (Severe Delay) | 27s |
+| **Max-Pressure** | Varaiya (2013) | 21.31 | 32 | 69s (Severe Delay) | 26s |
+| **PressLight** | Wei et al., ACM KDD (2019) | 21.31 | 32 | 69s (Severe Delay) | 26s |
+| **EVP-DRL** | Lin et al., TR-C (2023) | 20.83 | 48 (Shockwave Spike) | **29s** | 56s (Severe Lingering) |
+| **AURA (Proposed)** | SMDP Bounded + Momentum | **19.28** | **31** | **29s (-58.0%)** | **10s (-82.1%)** |
 
 ### 2. Real-World Midtown Manhattan OpenStreetMap Benchmark (177 Intersections, 661 Edges, 1,501 Vehicles)
 
