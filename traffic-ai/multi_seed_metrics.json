@@ -1,0 +1,374 @@
+{
+  "fixed": {
+    "name": "Fixed-Time (Webster 1958)",
+    "avg_q_mean": 14.469,
+    "avg_q_std": 0.9211531903000717,
+    "max_q_mean": 28.6,
+    "max_q_std": 1.2000000000000002,
+    "ev_mean": 68.0,
+    "ev_std": 41.82343840479881,
+    "rec_mean": 22.4,
+    "rec_std": 15.186836405255704,
+    "co2_mean": 114.56953459182532,
+    "co2_std": 3.7257521525232007,
+    "fuel_mean": 46.42747689511798,
+    "fuel_std": 1.5098063051485398,
+    "seed_runs": [
+      {
+        "avg_q": 14.209,
+        "max_q": 30,
+        "ev_latency": 132,
+        "rec_time": 10,
+        "co2_kg": 114.45439667511639,
+        "fuel_l": 46.3808180432472,
+        "switches": 30
+      },
+      {
+        "avg_q": 15.029,
+        "max_q": 28,
+        "ev_latency": 19,
+        "rec_time": 10,
+        "co2_kg": 114.88323503601652,
+        "fuel_l": 46.55460842220435,
+        "switches": 30
+      },
+      {
+        "avg_q": 15.925,
+        "max_q": 30,
+        "ev_latency": 80,
+        "rec_time": 41,
+        "co2_kg": 121.19863360711234,
+        "fuel_l": 49.1138181883992,
+        "switches": 30
+      },
+      {
+        "avg_q": 13.275,
+        "max_q": 28,
+        "ev_latency": 84,
+        "rec_time": 10,
+        "co2_kg": 110.14549444218738,
+        "fuel_l": 44.634694405024504,
+        "switches": 30
+      },
+      {
+        "avg_q": 13.907,
+        "max_q": 27,
+        "ev_latency": 25,
+        "rec_time": 41,
+        "co2_kg": 112.16591319869397,
+        "fuel_l": 45.45344541671462,
+        "switches": 30
+      }
+    ]
+  },
+  "actuated": {
+    "name": "Demand-Responsive Actuated (1990)",
+    "avg_q_mean": 18.7208,
+    "avg_q_std": 1.1138268087992855,
+    "max_q_mean": 34.2,
+    "max_q_std": 2.993325909419153,
+    "ev_mean": 120.2,
+    "ev_std": 54.54686058793851,
+    "rec_mean": 20.4,
+    "rec_std": 3.4409301068170506,
+    "co2_mean": 139.09229685934332,
+    "co2_std": 3.1488993237390646,
+    "fuel_mean": 56.36490962219746,
+    "fuel_std": 1.276053882835457,
+    "seed_runs": [
+      {
+        "avg_q": 17.572,
+        "max_q": 32,
+        "ev_latency": 172,
+        "rec_time": 16,
+        "co2_kg": 136.18478399672892,
+        "fuel_l": 55.18667114999556,
+        "switches": 64
+      },
+      {
+        "avg_q": 18.007,
+        "max_q": 30,
+        "ev_latency": 38,
+        "rec_time": 25,
+        "co2_kg": 136.45309292698352,
+        "fuel_l": 55.29541027091768,
+        "switches": 64
+      },
+      {
+        "avg_q": 20.794,
+        "max_q": 38,
+        "ev_latency": 163,
+        "rec_time": 17,
+        "co2_kg": 144.88037641538514,
+        "fuel_l": 58.71046247858614,
+        "switches": 59
+      },
+      {
+        "avg_q": 18.452,
+        "max_q": 37,
+        "ev_latency": 156,
+        "rec_time": 23,
+        "co2_kg": 138.41134171800786,
+        "fuel_l": 56.08896608735886,
+        "switches": 62
+      },
+      {
+        "avg_q": 18.779,
+        "max_q": 34,
+        "ev_latency": 72,
+        "rec_time": 21,
+        "co2_kg": 139.5318892396112,
+        "fuel_l": 56.54303812412904,
+        "switches": 63
+      }
+    ]
+  },
+  "max_pressure": {
+    "name": "Max-Pressure (Varaiya 2013)",
+    "avg_q_mean": 17.928600000000003,
+    "avg_q_std": 1.0125290316825488,
+    "max_q_mean": 30.0,
+    "max_q_std": 1.6733200530681511,
+    "ev_mean": 127.4,
+    "ev_std": 61.84043984319645,
+    "rec_mean": 18.6,
+    "rec_std": 1.4966629547095764,
+    "co2_mean": 137.71595409429307,
+    "co2_std": 3.9523028046102477,
+    "fuel_mean": 55.80716805625875,
+    "fuel_std": 1.601618427568159,
+    "seed_runs": [
+      {
+        "avg_q": 16.134,
+        "max_q": 29,
+        "ev_latency": 192,
+        "rec_time": 16,
+        "co2_kg": 132.01255306203532,
+        "fuel_l": 53.49593660269788,
+        "switches": 65
+      },
+      {
+        "avg_q": 17.677,
+        "max_q": 28,
+        "ev_latency": 36,
+        "rec_time": 20,
+        "co2_kg": 136.02245240640937,
+        "fuel_l": 55.12089842636218,
+        "switches": 65
+      },
+      {
+        "avg_q": 19.148,
+        "max_q": 30,
+        "ev_latency": 181,
+        "rec_time": 18,
+        "co2_kg": 143.99166793069904,
+        "fuel_l": 58.35032016966196,
+        "switches": 66
+      },
+      {
+        "avg_q": 18.424,
+        "max_q": 33,
+        "ev_latency": 155,
+        "rec_time": 19,
+        "co2_kg": 137.11602288326407,
+        "fuel_l": 55.56407031396419,
+        "switches": 66
+      },
+      {
+        "avg_q": 18.26,
+        "max_q": 30,
+        "ev_latency": 73,
+        "rec_time": 20,
+        "co2_kg": 139.43707418905765,
+        "fuel_l": 56.504614768607524,
+        "switches": 66
+      }
+    ]
+  },
+  "presslight": {
+    "name": "PressLight (Wei et al. KDD 2019)",
+    "avg_q_mean": 17.928600000000003,
+    "avg_q_std": 1.0125290316825488,
+    "max_q_mean": 30.0,
+    "max_q_std": 1.6733200530681511,
+    "ev_mean": 127.4,
+    "ev_std": 61.84043984319645,
+    "rec_mean": 18.6,
+    "rec_std": 1.4966629547095764,
+    "co2_mean": 137.71595409429307,
+    "co2_std": 3.9523028046102477,
+    "fuel_mean": 55.80716805625875,
+    "fuel_std": 1.601618427568159,
+    "seed_runs": [
+      {
+        "avg_q": 16.134,
+        "max_q": 29,
+        "ev_latency": 192,
+        "rec_time": 16,
+        "co2_kg": 132.01255306203532,
+        "fuel_l": 53.49593660269788,
+        "switches": 65
+      },
+      {
+        "avg_q": 17.677,
+        "max_q": 28,
+        "ev_latency": 36,
+        "rec_time": 20,
+        "co2_kg": 136.02245240640937,
+        "fuel_l": 55.12089842636218,
+        "switches": 65
+      },
+      {
+        "avg_q": 19.148,
+        "max_q": 30,
+        "ev_latency": 181,
+        "rec_time": 18,
+        "co2_kg": 143.99166793069904,
+        "fuel_l": 58.35032016966196,
+        "switches": 66
+      },
+      {
+        "avg_q": 18.424,
+        "max_q": 33,
+        "ev_latency": 155,
+        "rec_time": 19,
+        "co2_kg": 137.11602288326407,
+        "fuel_l": 55.56407031396419,
+        "switches": 66
+      },
+      {
+        "avg_q": 18.26,
+        "max_q": 30,
+        "ev_latency": 73,
+        "rec_time": 20,
+        "co2_kg": 139.43707418905765,
+        "fuel_l": 56.504614768607524,
+        "switches": 66
+      }
+    ]
+  },
+  "evp_drl": {
+    "name": "EVP-DRL (Lin et al. TR-C 2023)",
+    "avg_q_mean": 17.7928,
+    "avg_q_std": 0.877300267867279,
+    "max_q_mean": 34.4,
+    "max_q_std": 3.006659275674582,
+    "ev_mean": 75.6,
+    "ev_std": 42.61736735182031,
+    "rec_mean": 55.0,
+    "rec_std": 5.215361924162119,
+    "co2_mean": 134.75115013810415,
+    "co2_std": 3.435033132685516,
+    "fuel_mean": 54.605732887132504,
+    "fuel_std": 1.3920002591946072,
+    "seed_runs": [
+      {
+        "avg_q": 17.674,
+        "max_q": 33,
+        "ev_latency": 121,
+        "rec_time": 46,
+        "co2_kg": 135.19949694206798,
+        "fuel_l": 54.787408658967166,
+        "switches": 58
+      },
+      {
+        "avg_q": 17.229,
+        "max_q": 30,
+        "ev_latency": 17,
+        "rec_time": 62,
+        "co2_kg": 131.4307844983562,
+        "fuel_l": 53.260210638980475,
+        "switches": 64
+      },
+      {
+        "avg_q": 19.275,
+        "max_q": 36,
+        "ev_latency": 110,
+        "rec_time": 54,
+        "co2_kg": 141.18668455337195,
+        "fuel_l": 57.213649889833206,
+        "switches": 58
+      },
+      {
+        "avg_q": 18.1,
+        "max_q": 39,
+        "ev_latency": 98,
+        "rec_time": 56,
+        "co2_kg": 133.02414370581252,
+        "fuel_l": 53.905906474491154,
+        "switches": 59
+      },
+      {
+        "avg_q": 16.686,
+        "max_q": 34,
+        "ev_latency": 32,
+        "rec_time": 57,
+        "co2_kg": 132.91464099091212,
+        "fuel_l": 53.861488773390526,
+        "switches": 64
+      }
+    ]
+  },
+  "aura": {
+    "name": "AURA (Proposed Safe SMDP)",
+    "avg_q_mean": 15.812400000000002,
+    "avg_q_std": 1.5344214023533433,
+    "max_q_mean": 30.2,
+    "max_q_std": 2.3151673805580453,
+    "ev_mean": 67.4,
+    "ev_std": 37.46785288750878,
+    "rec_mean": 30.4,
+    "rec_std": 17.09502851708648,
+    "co2_mean": 122.70607732877856,
+    "co2_std": 5.306665273903415,
+    "fuel_mean": 49.72465979787702,
+    "fuel_std": 2.1504524482544642,
+    "seed_runs": [
+      {
+        "avg_q": 15.343,
+        "max_q": 33,
+        "ev_latency": 108,
+        "rec_time": 10,
+        "co2_kg": 121.58581833002476,
+        "fuel_l": 49.27069540503018,
+        "switches": 38
+      },
+      {
+        "avg_q": 15.953,
+        "max_q": 28,
+        "ev_latency": 24,
+        "rec_time": 47,
+        "co2_kg": 122.01718502623393,
+        "fuel_l": 49.44550233896499,
+        "switches": 41
+      },
+      {
+        "avg_q": 18.684,
+        "max_q": 32,
+        "ev_latency": 103,
+        "rec_time": 10,
+        "co2_kg": 132.88221839433325,
+        "fuel_l": 53.848396871595064,
+        "switches": 35
+      },
+      {
+        "avg_q": 14.378,
+        "max_q": 31,
+        "ev_latency": 80,
+        "rec_time": 37,
+        "co2_kg": 118.01424054703205,
+        "fuel_l": 47.82335114402181,
+        "switches": 41
+      },
+      {
+        "avg_q": 14.704,
+        "max_q": 27,
+        "ev_latency": 22,
+        "rec_time": 48,
+        "co2_kg": 119.03092434626886,
+        "fuel_l": 48.235353229773025,
+        "switches": 42
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "aura": {
+    "name": "Full AURA (SMDP Bounds + Momentum)",
+    "avg_q_mean": 15.812400000000002,
+    "avg_q_std": 1.5344214023533433,
+    "max_q_mean": 30.2,
+    "max_q_std": 2.3151673805580453,
+    "ev_mean": 67.4,
+    "ev_std": 37.46785288750878,
+    "rec_mean": 30.4,
+    "rec_std": 17.09502851708648,
+    "co2_mean": 122.70607732877856,
+    "co2_std": 5.306665273903415,
+    "switches_mean": 39.4,
+    "switches_std": 2.5768197453450252
+  },
+  "aura_no_momentum": {
+    "name": "AURA w/o Momentum Recovery Flush",
+    "avg_q_mean": 15.880400000000003,
+    "avg_q_std": 1.7178566412829674,
+    "max_q_mean": 31.0,
+    "max_q_std": 3.286335345030997,
+    "ev_mean": 67.4,
+    "ev_std": 37.46785288750878,
+    "rec_mean": 30.4,
+    "rec_std": 17.09502851708648,
+    "co2_mean": 122.89485644241843,
+    "co2_std": 5.6788588121698425,
+    "switches_mean": 39.6,
+    "switches_std": 2.4979991993593593
+  },
+  "aura_no_bounds": {
+    "name": "AURA w/o SMDP Bounds (Unconstrained DRL)",
+    "avg_q_mean": 16.141200000000005,
+    "avg_q_std": 1.2294143971826585,
+    "max_q_mean": 50.4,
+    "max_q_std": 0.4898979485566356,
+    "ev_mean": 190.2,
+    "ev_std": 60.89794742025383,
+    "rec_mean": 69.8,
+    "rec_std": 3.3105890714493698,
+    "co2_mean": 142.87521592762215,
+    "co2_std": 1.4127473838868254,
+    "switches_mean": 113.0,
+    "switches_std": 8.508818954473059
+  }
+}
