@@ -1,36 +1,89 @@
 \section{Methodology}
 \label{sec:methodology}
 
-The AURA architecture decouples perceptual state representation, policy optimization, and action-duration bounding into modular stages, as illustrated in Fig.~\ref{fig:architecture}.
+The AURA architecture decouples perceptual state representation, continuous-time queue dynamics, policy optimization, and action-duration bounding into modular stages, as illustrated in Fig.~\ref{fig:architecture}.
 
-\begin{figure}[htbp]
+\begin{figure*}[!t]
 \centering
 \begin{tikzpicture}[
-    node distance=0.7cm and 0.5cm,
-    block/.style={rectangle, draw=blue!80, fill=blue!5, thick, minimum width=3.4cm, minimum height=0.75cm, align=center, rounded corners=2pt, font=\scriptsize},
-    safety/.style={rectangle, draw=red!80, fill=red!5, thick, minimum width=3.4cm, minimum height=0.75cm, align=center, rounded corners=2pt, font=\scriptsize},
-    highlight/.style={rectangle, draw=teal!80, fill=teal!5, thick, minimum width=3.4cm, minimum height=0.75cm, align=center, rounded corners=2pt, font=\scriptsize},
-    line/.style={draw, -latex, thick}
+    scale=0.88, every node/.style={transform shape},
+    box/.style={draw, rounded corners=3pt, thick, align=center},
+    arrow/.style={->, thick, draw=gray!80},
+    dasharrow/.style={->, thick, dashed, draw=red!80}
 ]
-    \node[block] (state) {State Space $\mathcal{S}_j$\\Approach Queues $[q_l]_{l \in \mathcal{L}_j^{\text{in}}}$};
-    \node[block, below=of state] (dqn) {SMDP Policy Engine\\Phase Selection $a_j \in \Phi_j$};
-    \node[safety, below=of dqn] (bounds) {Action-Duration Bounds\\$10\,\text{s} \le \tau \le 45\,\text{s}, \; t_{\text{yellow}}=3\,\text{s}$};
-    \node[block, below=of bounds] (actuation) {Physical Signal Actuation\\Phase Execution via TraCI};
-    
-    \node[highlight, right=1.0cm of dqn] (evp) {Rolling EVP Controller\\Preempt \& Momentum Flush};
+    % 1. Sensory Inputs (Left)
+    \node[draw, fill=blue!10, rounded corners, minimum width=3.2cm, minimum height=1.0cm, align=center] (q_in) at (0, 2.0) {\textbf{Approach Halt Queues}\\\small $[q_l(t)]_{l \in \mathcal{L}_j^{\text{in}}}$ (halting veh)};
+    \node[draw, fill=teal!10, rounded corners, minimum width=3.2cm, minimum height=0.9cm, align=center] (phase_in) at (0, 0.6) {\textbf{Phase State \& Timer}\\\small Active $\phi_j(t) \in \Phi_j, \; \tau_{\text{elapsed}}$};
+    \node[draw, fill=red!10, rounded corners, minimum width=3.2cm, minimum height=0.9cm, align=center] (ev_in) at (0, -0.8) {\textbf{Emergency Telemetry}\\\small EV Proximity ($d_{\text{EV}} \le 120\,\text{m}$)};
 
-    \path[line] (state) -- (dqn);
-    \path[line] (dqn) -- (bounds);
-    \path[line] (bounds) -- (actuation);
-    \path[line] (state) -| (evp);
-    \path[line, dashed, draw=teal!90] (evp) -- node[above, font=\tiny] {Priority} (dqn);
+    % Input Group Boundary Label
+    \node[font=\footnotesize\bfseries, text=blue!80] at (0, 2.8) {Perceptual State Inputs $\mathcal{S}_j$};
+
+    % 2. SMDP Policy Engine & NeurODE Continuous Dynamics (Center-Left)
+    \node[draw, fill=purple!15, rounded corners, minimum width=3.8cm, minimum height=3.6cm, align=center] (smdp) at (4.9, 0.6) {%
+        \textbf{Decentralized SMDP Engine}\\[3pt]
+        \small 2-Layer MLP ($4 \to 64 \to 64 \to |\Phi_j|$)\\[3pt]
+        \footnotesize \textbf{NeurODE Continuous Dynamics:}\\[1pt]
+        \scriptsize $\frac{ds_j(t)}{dt} = f_\theta(s_j(t), \phi_j), \; s(t+\tau) = s(t) + \int_t^{t+\tau} f_\theta \, du$\\[3pt]
+        \footnotesize \textbf{Continuous Discounting:} $\gamma^{\tau(s, a)}$\\[2pt]
+        \footnotesize Bellman Target: $r + \gamma^\tau \max_{a'} Q(s', a'; \theta^-)$\\[3pt]
+        \footnotesize \textbf{Edge Compute Profile:}\\[1pt]
+        \scriptsize 4,740 parameters ($18.52\,\text{KB}$), Latency: \textbf{33.28\,$\mu$s}
+    };
+
+    % 3. Action-Duration Bounds (Center-Right Top)
+    \node[draw, fill=yellow!20, draw=orange!80, rounded corners, minimum width=3.8cm, minimum height=1.6cm, align=center] (safety) at (10.0, 1.7) {%
+        \textbf{Action-Duration Envelope}\\[2pt]
+        \small Dynamic Green: $\tau = \max(10\,\text{s}, \min(2 q_{\text{act}}, 45\,\text{s}))$\\[2pt]
+        \small Clearance: $t_{\text{yellow}} = 3\,\text{s}$ (deterministic)\\[2pt]
+        \footnotesize Eliminates Flickering \& Starvation
+    };
+
+    % 4. Rolling EVP & Momentum Flush (Center-Right Bottom)
+    \node[draw, fill=orange!15, draw=red!80, rounded corners, minimum width=3.8cm, minimum height=1.6cm, align=center] (evp) at (10.0, -0.6) {%
+        \textbf{Rolling EVP \& Momentum Flush}\\[2pt]
+        \small Rolling Green Wave: $a_j \leftarrow \phi_{\text{EV}}$\\[2pt]
+        \small Active Momentum Flush: $r_{\text{momentum}}(s)$\\[2pt]
+        \footnotesize Suppresses Secondary Shockwave ($T_{\text{rec}}$)
+    };
+
+    % 5. Physical Execution & Microscopic SUMO Network (Right)
+    \node[draw, fill=green!15, draw=green!80, rounded corners, minimum width=3.2cm, minimum height=1.5cm, align=center] (act) at (14.8, 1.7) {%
+        \textbf{TraCI Signal Actuator}\\[2pt]
+        \small Local Phase Switching\\[2pt]
+        \small Zero Inter-Agent Comms\\[2pt]
+        \footnotesize $\mathcal{O}(1)$ Decentralized Execution
+    };
+
+    \node[draw, fill=green!25, draw=teal!80, rounded corners, minimum width=3.2cm, minimum height=1.5cm, align=center] (sumo) at (14.8, -0.6) {%
+        \textbf{SUMO Microscopic Engine}\\[2pt]
+        \small Krauss Car-Following Dynamics\\[2pt]
+        \small Manhattan OSM (177 Junctions)\\[2pt]
+        \footnotesize High-Density Rush-Hour Flow
+    };
+
+    % Connectors
+    \draw[arrow] (q_in.east) -- ++(0.4, 0) |- ([yshift=24pt]smdp.west);
+    \draw[arrow] (phase_in.east) -- (smdp.west);
+    \draw[dasharrow] (ev_in.east) -- ++(0.4, 0) |- ([yshift=-24pt]smdp.west);
+    \draw[dasharrow] (ev_in.east) -- ++(0.7, 0) |- (evp.west) node[pos=0.7, below, font=\tiny\bfseries, text=red!80] {Preempt Trigger};
+
+    \draw[arrow] ([yshift=20pt]smdp.east) -- ([yshift=0pt]safety.west) node[midway, above, font=\footnotesize] {Target Phase $a_j$};
+    \draw[arrow] (safety.east) -- (act.west) node[midway, above, font=\footnotesize] {Bounded $(\phi, \tau)$};
+    \draw[arrow] (act.south) -- (sumo.north) node[midway, right, font=\tiny] {Signal States};
+    \draw[arrow] (evp.east) -- (sumo.west) node[midway, above, font=\footnotesize] {Preempt Flush};
+
+    % Closed-loop feedback
+    \draw[arrow, draw=blue!70, thick] (sumo.south) -- ++(0, -0.8) -| node[pos=0.25, below, font=\footnotesize\bfseries, text=blue!90] {Closed-Loop Microscopic Trajectory Feedback: $[q_l(t+\tau)]$, Elapsed Interval $\tau$, Continuous Reward $r(s, a)$} ([yshift=-4pt]ev_in.south);
+
 \end{tikzpicture}
-\caption{The modular AURA control loop. The SMDP policy selects non-conflicting phase targets, action-duration bounds enforce clearance and stability invariants, and rolling preemption coordinates emergency transit with cross-street momentum recovery.}
+\caption{\textbf{Decentralized AURA Policy and Resilient Control Architecture.} Localized approach queue lengths $[q_l]$, active phase index $\phi_j$, and elapsed duration $\tau_{\text{elapsed}}$ constitute the localized SMDP state $s_j$. The ultra-lightweight SMDP Q-network (4,740 parameters, 18.52\,KB) selects the non-conflicting target phase $a_j$ in $33.28\,\mu\text{s}$, with continuous-time inter-decision transitions governed by Neural Ordinary Differential Equations (NeurODEs)~\cite{chen2018neural}. The deterministic action-duration safety envelope enforces statutory green boundaries ($10\,\text{s} \le \tau \le 45\,\text{s}$) and mandatory 3-second yellow clearance intervals, eliminating phase flickering and pedestrian hazards. Upon emergency vehicle detection ($d_{\text{EV}} \le 120\,\text{m}$), rolling preemption establishes a localized green wave, while the post-preemption momentum recovery mechanism dynamically suppresses secondary cross-arterial congestion shockwaves ($T_{\text{rec}}$) before restoring decentralized SMDP control.}
 \label{fig:architecture}
-\end{figure}
+\vspace{-2mm}
+\end{figure*}
 
 \subsection{Semi-Markov Decision Process (SMDP) Formulation}
-Standard discrete-time MDP formulations assume uniform transition durations ($\Delta t = 1$). In realistic traffic signal regulation, however, executing a phase switch incurs variable physical clearance times, minimum green intervals, and vehicle headway delays. We therefore formulate decentralized signal regulation as a **Semi-Markov Decision Process (SMDP)** defined by the tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \mathcal{T}, \gamma \rangle$:
+Standard discrete-time MDP formulations assume uniform transition durations ($\Delta t = 1$). In realistic urban traffic signal regulation, however, executing a phase switch incurs variable physical clearance times, minimum green intervals, and vehicle acceleration headways. We therefore formulate decentralized signal regulation as a \textbf{Semi-Markov Decision Process (SMDP)} defined by the tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \mathcal{T}, \gamma \rangle$:
 
 \subsubsection{Localized State Space ($\mathcal{S}$)}
 For each signalized intersection $j$, the localized state vector $s_j(t) \in \mathcal{S}_j$ captures the vehicle halt count across its incoming approach lanes $\mathcal{L}_j^{\text{in}}$, the current active signal phase index $\phi_j$, and the elapsed phase duration $\tau_{\text{elapsed}}$:
@@ -55,6 +108,19 @@ To eliminate phase flickering, guarantee pedestrian clearance, and prevent arter
 \label{eq:duration}
 \end{equation}
 where $t_{\min} = 10\,\text{s}$ enforces the statutory minimum clearance headway for queued vehicles to accelerate from rest, and $t_{\max} = 45\,\text{s}$ bounds maximum green duration against opposing arterial starvation. Whenever a phase transition occurs ($a_j \ne \phi_j$), a mandatory 3-second yellow clearance interval $t_{\text{yellow}} = 3\,\text{s}$ is deterministically executed prior to displaying the new green phase.
+
+\subsubsection{Continuous-Time Queue Dynamics via Neural ODEs (NeurODEs)}
+Between discrete decision epochs, incoming vehicle arrivals and queue dissipation evolve continuously according to an underlying dynamical system:
+\begin{equation}
+\frac{ds_j(t)}{dt} = f_{\theta}\left(s_j(t), \phi_j(t)\right)
+\label{eq:neurode}
+\end{equation}
+which is formulated as a continuous \textbf{Neural Ordinary Differential Equation (NeurODE)}~\cite{chen2018neural}. Given an active phase target $a_j$ held over the bounded action duration $\tau(s_j, a_j) \in [t_{\min}, t_{\max}]$, the continuous-time forward integration yields the terminal queue state:
+\begin{equation}
+s_j(t + \tau) = s_j(t) + \int_{t}^{t+\tau} f_{\theta}\left(s_j(u), \phi_j\right) \, du
+\label{eq:neurode_integral}
+\end{equation}
+This continuous-time NeurODE evolution rigorously justifies the duration-discounted Bellman formulation: rather than an invalid discrete unit-step discount, the cumulative discount across interval $\tau$ is $\gamma^\tau = \exp(-\int_0^\tau \alpha \, du)$ with continuous decay rate $\alpha = -\ln \gamma$, providing the theoretical convergence guarantee for our SMDP Q-learning update.
 
 \subsubsection{Duration-Discounted Bellman Optimization}
 Because the duration $\tau(s, a)$ varies per decision step, the standard fixed-step Bellman equation is mathematically invalid. We apply continuous-time discounting within the SMDP Q-learning update:
