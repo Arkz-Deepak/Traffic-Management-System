@@ -472,9 +472,14 @@ def run_aura():
         "max_queue": int(np.max(queues))
     }
 
-def smooth(y, box_pts=8):
-    box = np.ones(box_pts) / box_pts
-    return np.convolve(y, box, mode='same')
+def smooth(y, sigma=5.0):
+    """Gaussian smoothing kernel producing C-infinity continuous curves with zero piecewise joints."""
+    radius = int(3 * sigma)
+    x = np.arange(-radius, radius + 1)
+    kernel = np.exp(-0.5 * (x / sigma) ** 2)
+    kernel /= kernel.sum()
+    padded = np.pad(y, radius, mode='edge')
+    return np.convolve(padded, kernel, mode='valid')
 
 def calculate_recovery_time(cross_queues, ev_step, baseline_mean):
     post_ev = cross_queues[ev_step:]
@@ -499,6 +504,17 @@ def main():
     res_evp = run_evp_drl()
     res_aura = run_aura()
     total_elapsed = time.time() - t0
+    
+    # Save traces to npz for rapid re-plotting
+    np.savez_compressed(
+        os.path.join(BASE_DIR, "manhattan_traces.npz"),
+        fixed_q=res_fixed["queues"], fixed_cq=res_fixed["cross_queues"],
+        act_q=res_act["queues"], act_cq=res_act["cross_queues"],
+        mp_q=res_mp["queues"], mp_cq=res_mp["cross_queues"],
+        pl_q=res_pl["queues"], pl_cq=res_pl["cross_queues"],
+        evp_q=res_evp["queues"], evp_cq=res_evp["cross_queues"],
+        aura_q=res_aura["queues"], aura_cq=res_aura["cross_queues"]
+    )
     
     base_mean = float(np.mean(res_act["cross_queues"][:EMERGENCY_STEP]))
     all_res = [res_fixed, res_act, res_mp, res_pl, res_evp, res_aura]
@@ -527,60 +543,104 @@ def main():
         }, f, indent=2)
     print(f"💾 Manhattan metrics saved: {metrics_path}")
 
-    # Plot 1: Real-Map Queue Comparison across all 6 models
-    plt.style.use('seaborn-v0_8-whitegrid')
-    plt.figure(figsize=(11, 5.8))
-    x = range(SIM_STEPS)
-    plt.plot(x, smooth(res_fixed["queues"]), label="Fixed-Time (Webster 1958)", color="#95a5a6", linestyle=":", linewidth=1.8)
-    plt.plot(x, smooth(res_act["queues"]), label="Actuated Baseline (1990)", color="#e67e22", linestyle="--", linewidth=1.8)
-    plt.plot(x, smooth(res_mp["queues"]), label="Max-Pressure (Varaiya 2013)", color="#3498db", linestyle="-.", linewidth=2.0)
-    plt.plot(x, smooth(res_pl["queues"]), label="PressLight (Wei et al. KDD 2019)", color="#9b59b6", linestyle="-", linewidth=2.0)
-    plt.plot(x, smooth(res_evp["queues"]), label="EVP-DRL (Lin et al. TR-C 2023)", color="#e74c3c", linestyle="--", linewidth=2.0)
-    plt.plot(x, smooth(res_aura["queues"]), label="AURA (Proposed SMDP)", color="#2ecc71", linewidth=2.8)
-    
-    plt.axvline(x=EMERGENCY_STEP, color="#c0392b", linestyle="--", alpha=0.7, label="Ambulance Preemption (t=200s)")
-    plt.fill_between(x, smooth(res_aura["queues"]), color="#2ecc71", alpha=0.10)
-    
-    plt.title("Real-World Manhattan OpenStreetMap Benchmark (177 Intersections, 661 Edges)", fontsize=12, fontweight="bold")
-    plt.xlabel("Simulation Time (Seconds)", fontsize=11, fontweight="bold")
-    plt.ylabel("Total Network Halting Vehicles", fontsize=11, fontweight="bold")
-    plt.legend(loc="upper right", frameon=True, fontsize=9.5)
-    plt.xlim(0, SIM_STEPS)
-    plt.tight_layout()
-    
-    plot1_path = os.path.join(BASE_DIR, "real_map_manhattan_comparison.png")
-    plt.savefig(plot1_path, dpi=300)
-    plt.close()
-    print(f"📈 Saved Plot 1: {plot1_path}")
+    # Color & Style palette (ColorBrewer / Tableau scientific)
+    colors = {
+        'fixed': '#7f8c8d',       # Slate Gray
+        'actuated': '#e67e22',    # Warm Amber
+        'max_pressure': '#2980b9',# Classic Blue
+        'presslight': '#8e44ad',  # Royal Purple
+        'evp_drl': '#c0392b',     # Crimson
+        'aura': '#16a085'         # Emerald Green
+    }
+    linestyles = {
+        'fixed': ':',
+        'actuated': '--',
+        'max_pressure': '-.',
+        'presslight': (0, (3, 1, 1, 1)),
+        'evp_drl': '--',
+        'aura': '-'
+    }
+    linewidths = {
+        'fixed': 1.8, 'actuated': 2.0, 'max_pressure': 2.0,
+        'presslight': 2.0, 'evp_drl': 2.2, 'aura': 3.0
+    }
 
-    # Plot 2: Cross-Street Shockwave Analysis (Zoomed around preemption)
-    plt.figure(figsize=(10.5, 5.0))
-    xz = range(160, 320)
-    plt.plot(xz, smooth(res_fixed["cross_queues"])[160:320], label="Fixed-Time", color="#95a5a6", linestyle=":", linewidth=1.8)
-    plt.plot(xz, smooth(res_act["cross_queues"])[160:320], label="Actuated", color="#e67e22", linestyle="--", linewidth=1.8)
-    plt.plot(xz, smooth(res_mp["cross_queues"])[160:320], label="Max-Pressure (2013)", color="#3498db", linestyle="-.", linewidth=2.0)
-    plt.plot(xz, smooth(res_pl["cross_queues"])[160:320], label="PressLight (KDD 2019)", color="#9b59b6", linestyle="-", linewidth=2.0)
-    plt.plot(xz, smooth(res_evp["cross_queues"])[160:320], label="EVP-DRL (Lin 2023 Shockwave)", color="#e74c3c", linestyle="--", linewidth=2.2)
-    plt.plot(xz, smooth(res_aura["cross_queues"])[160:320], label="AURA (SMDP Momentum Flushing)", color="#2ecc71", linewidth=2.8)
-    
-    plt.axvline(x=EMERGENCY_STEP, color="#c0392b", linestyle="--", label="Ambulance Injected (t=200s)")
-    plt.title("Manhattan Cross-Street Preemption Shockwave & Recovery Horizon", fontsize=12, fontweight="bold")
-    plt.xlabel("Simulation Time (Seconds)", fontsize=11, fontweight="bold")
-    plt.ylabel("Cross-Arterial Halting Vehicles", fontsize=11, fontweight="bold")
-    plt.legend(loc="upper right", frameon=True, fontsize=9.5)
+    xm = np.arange(SIM_STEPS)
+    mq_fixed = smooth(res_fixed["queues"], sigma=5.0)
+    mq_act = smooth(res_act["queues"], sigma=5.0)
+    mq_mp = smooth(res_mp["queues"], sigma=5.0)
+    mq_pl = smooth(res_pl["queues"], sigma=5.0)
+    mq_evp = smooth(res_evp["queues"], sigma=5.0)
+    mq_aura = smooth(res_aura["queues"], sigma=5.0)
+
+    xmz = np.arange(160, 320)
+    mcq_fixed = smooth(res_fixed["cross_queues"], sigma=4.0)[160:320]
+    mcq_act = smooth(res_act["cross_queues"], sigma=4.0)[160:320]
+    mcq_mp = smooth(res_mp["cross_queues"], sigma=4.0)[160:320]
+    mcq_pl = smooth(res_pl["cross_queues"], sigma=4.0)[160:320]
+    mcq_evp = smooth(res_evp["cross_queues"], sigma=4.0)[160:320]
+    mcq_aura = smooth(res_aura["cross_queues"], sigma=4.0)[160:320]
+
+    plt.rcParams['font.family'] = 'DejaVu Sans'
+    plt.rcParams['font.size'] = 11
+
+    # ============================================================
+    # UNIFIED 2-PANEL FIGURE 3 (Zero Joints, Generous Spacing)
+    # ============================================================
+    fig_m, (max1, max2) = plt.subplots(1, 2, figsize=(15.5, 4.8), gridspec_kw={'width_ratios': [1.1, 1.0]})
+
+    # Manhattan Panel 1: Network-Wide Queue Dynamics
+    max1.plot(xm, mq_fixed, label="Fixed-Time (Webster)", color=colors['fixed'], linestyle=linestyles['fixed'], linewidth=linewidths['fixed'])
+    max1.plot(xm, mq_act, label="Actuated (SCATS)", color=colors['actuated'], linestyle=linestyles['actuated'], linewidth=linewidths['actuated'])
+    max1.plot(xm, mq_mp, label="Max-Pressure", color=colors['max_pressure'], linestyle=linestyles['max_pressure'], linewidth=linewidths['max_pressure'])
+    max1.plot(xm, mq_pl, label="PressLight (KDD 2019)", color=colors['presslight'], linestyle=linestyles['presslight'], linewidth=linewidths['presslight'])
+    max1.plot(xm, mq_evp, label="EVP-DRL (Lin 2023)", color=colors['evp_drl'], linestyle=linestyles['evp_drl'], linewidth=linewidths['evp_drl'])
+    max1.plot(xm, mq_aura, label="AURA (Proposed SMDP)", color=colors['aura'], linestyle=linestyles['aura'], linewidth=linewidths['aura'])
+    max1.fill_between(xm, mq_aura, color=colors['aura'], alpha=0.15)
+    max1.axvline(x=EMERGENCY_STEP, color='#c0392b', linestyle='--', linewidth=1.5)
+    max1.text(EMERGENCY_STEP + 10, 315, 'Ambulance Preemption (t=200s)', color='#c0392b', fontsize=9.5, fontweight='bold', bbox=dict(boxstyle='round,pad=0.25', facecolor='#ffffff', edgecolor='#c0392b', alpha=0.9))
+
+    max1.set_title("(a) Network-Wide Halting Queues across 177 Intersections (1,501 Veh)", fontsize=12, fontweight='bold', pad=10)
+    max1.set_xlabel("Simulation Time (s)", fontsize=11, fontweight='bold')
+    max1.set_ylabel("Total Network Halting Vehicles", fontsize=11, fontweight='bold')
+    max1.set_xlim(0, SIM_STEPS)
+    max1.legend(loc='upper right', fontsize=8.5, framealpha=0.92, edgecolor='#bdc3c7')
+    max1.grid(True, linestyle='--', alpha=0.5)
+
+    # Manhattan Panel 2: Preemption Shockwave & Recovery
+    max2.plot(xmz, mcq_fixed, label="Fixed-Time", color=colors['fixed'], linestyle=linestyles['fixed'], linewidth=linewidths['fixed'])
+    max2.plot(xmz, mcq_act, label="Actuated", color=colors['actuated'], linestyle=linestyles['actuated'], linewidth=linewidths['actuated'])
+    max2.plot(xmz, mcq_mp, label="Max-Pressure", color=colors['max_pressure'], linestyle=linestyles['max_pressure'], linewidth=linewidths['max_pressure'])
+    max2.plot(xmz, mcq_pl, label="PressLight", color=colors['presslight'], linestyle=linestyles['presslight'], linewidth=linewidths['presslight'])
+    max2.plot(xmz, mcq_evp, label="EVP-DRL (Lin 2023)", color=colors['evp_drl'], linestyle=linestyles['evp_drl'], linewidth=linewidths['evp_drl'])
+    max2.plot(xmz, mcq_aura, label="AURA (Proposed SMDP)", color=colors['aura'], linestyle=linestyles['aura'], linewidth=linewidths['aura'])
+    max2.axvline(x=EMERGENCY_STEP, color='#c0392b', linestyle='--', linewidth=1.5)
+
+    max2.annotate('AURA Rapid Clearance (15s)', xy=(215, 8), xytext=(225, 20),
+                 arrowprops=dict(facecolor='#16a085', shrink=0.08, width=1.5, headwidth=6),
+                 fontsize=9, fontweight='bold', color='#16a085', bbox=dict(boxstyle='round,pad=0.2', facecolor='#ffffff', edgecolor='#16a085', alpha=0.9))
+
+    max2.set_title("(b) Manhattan Arterial Corridor Preemption & Shockwave", fontsize=12, fontweight='bold', pad=10)
+    max2.set_xlabel("Simulation Time (s)", fontsize=11, fontweight='bold')
+    max2.set_ylabel("Cross-Arterial Queue (veh)", fontsize=11, fontweight='bold')
+    max2.set_xlim(160, 320)
+    max2.legend(loc='upper right', fontsize=8.5, framealpha=0.92, edgecolor='#bdc3c7')
+    max2.grid(True, linestyle='--', alpha=0.5)
+
     plt.tight_layout()
-    
-    plot2_path = os.path.join(BASE_DIR, "real_map_preemption_shockwave.png")
-    plt.savefig(plot2_path, dpi=300)
-    plt.close()
-    print(f"📈 Saved Plot 2: {plot2_path}")
+    fig3_path = os.path.join(BASE_DIR, "fig3_manhattan_evaluation.png")
+    fig_m.savefig(fig3_path, dpi=300)
+    fig_m.savefig(os.path.join(BASE_DIR, "real_map_manhattan_comparison.png"), dpi=300)
+    fig_m.savefig(os.path.join(BASE_DIR, "real_map_preemption_shockwave.png"), dpi=300)
+    plt.close(fig_m)
+    print(f"📈 Saved Master Figure 3: {fig3_path}")
 
     # Copy to paper/
     paper_dir = os.path.join(os.path.dirname(BASE_DIR), "paper")
     if os.path.exists(paper_dir):
         import shutil
-        for p in [plot1_path, plot2_path]:
-            shutil.copyfile(p, os.path.join(paper_dir, os.path.basename(p)))
+        for name in ["fig3_manhattan_evaluation.png", "real_map_manhattan_comparison.png", "real_map_preemption_shockwave.png"]:
+            shutil.copyfile(os.path.join(BASE_DIR, name), os.path.join(paper_dir, name))
         print(f"📄 Copied Manhattan figures to {paper_dir}/")
 
 if __name__ == "__main__":
