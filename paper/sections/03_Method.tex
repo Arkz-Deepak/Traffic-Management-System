@@ -5,76 +5,80 @@ The AURA architecture decouples perceptual state representation, continuous-time
 
 \begin{figure*}[!t]
 \centering
-\begin{tikzpicture}[
-    scale=0.88, every node/.style={transform shape},
-    arrow/.style={->, thick, draw=gray!80, >=stealth},
-    dasharrow/.style={->, thick, dashed, draw=red!80, >=stealth}
-]
-    % 1. Sensory Inputs (Left Column, x=0)
-    \node[draw=blue!80, fill=blue!10, rounded corners=4pt, thick, minimum width=3.3cm, minimum height=1.0cm, align=center] (q_in) at (0, 1.8) {\textbf{Approach Halt Queues}\\\small $[q_l(t)]_{l \in \mathcal{L}_j^{\text{in}}}$ (halting veh)};
-    \node[draw=teal!80, fill=teal!10, rounded corners=4pt, thick, minimum width=3.3cm, minimum height=0.9cm, align=center] (phase_in) at (0, 0.4) {\textbf{Phase State \& Timer}\\\small Active $\phi_j(t) \in \Phi_j, \; \tau_{\text{elapsed}}$};
-    \node[draw=red!80, fill=red!10, rounded corners=4pt, thick, minimum width=3.3cm, minimum height=0.9cm, align=center] (ev_in) at (0, -1.0) {\textbf{Emergency Telemetry}\\\small EV Proximity ($d_{\text{EV}} \le 120\,\text{m}$)};
+\IfFileExists{fig1_architecture.png}{%
+    \includegraphics[width=\textwidth]{fig1_architecture.png}%
+}{%
+    \begin{tikzpicture}[
+        scale=0.88, every node/.style={transform shape},
+        arrow/.style={->, thick, draw=gray!80, >=stealth},
+        dasharrow/.style={->, thick, dashed, draw=red!80, >=stealth}
+    ]
+        % 1. Sensory Inputs (Left Column, x=0)
+        \node[draw=blue!80, fill=blue!10, rounded corners=4pt, thick, text width=3.2cm, minimum height=1.0cm, align=center] (q_in) at (0, 1.8) {\textbf{Approach Halt Queues}\\\small $[q_l(t)]_{l \in \mathcal{L}_j^{\text{in}}}$ (halting veh)};
+        \node[draw=teal!80, fill=teal!10, rounded corners=4pt, thick, text width=3.2cm, minimum height=0.9cm, align=center] (phase_in) at (0, 0.4) {\textbf{Phase State \& Timer}\\\small Active $\phi_j(t) \in \Phi_j, \; \tau_{\text{elapsed}}$};
+        \node[draw=red!80, fill=red!10, rounded corners=4pt, thick, text width=3.2cm, minimum height=0.9cm, align=center] (ev_in) at (0, -1.0) {\textbf{Emergency Telemetry}\\\small EV Proximity ($d_{\text{EV}} \le 120\,\text{m}$)};
 
-    % Input Group Boundary Label
-    \node[font=\footnotesize\bfseries, text=blue!80] at (0, 2.6) {Perceptual State Inputs $\mathcal{S}_j$};
+        % Input Group Boundary Label
+        \node[font=\footnotesize\bfseries, text=blue!80] at (0, 2.6) {Perceptual State Inputs $\mathcal{S}_j$};
 
-    % 2. SMDP Policy Engine & NeurODE Continuous Dynamics (Center-Left Column, x=5.2, y=0.4)
-    \node[draw=purple!80, fill=purple!15, rounded corners=4pt, thick, minimum width=3.9cm, minimum height=3.6cm, align=center] (smdp) at (5.2, 0.4) {%
-        \textbf{Decentralized SMDP Engine}\\[3pt]
-        \small 2-Layer MLP ($4 \to 64 \to 64 \to |\Phi_j|$)\\[3pt]
-        \footnotesize \textbf{NeurODE Continuous Dynamics:}\\[1pt]
-        \scriptsize $\frac{ds_j(t)}{dt} = f_\theta(s_j(t), \phi_j), \; s(t+\tau) = s(t) + \int_t^{t+\tau} f_\theta \, du$\\[3pt]
-        \footnotesize \textbf{Continuous Discounting:} $\gamma^{\tau(s, a)}$\\[2pt]
-        \footnotesize Bellman Target: $r + \gamma^\tau \max_{a'} Q(s', a'; \theta^-)$\\[3pt]
-        \footnotesize \textbf{Edge Compute Profile:}\\[1pt]
-        \scriptsize 4,740 parameters (\textbf{18.52\,KB}), Latency: \textbf{33.28\,$\mu$s}
-    };
+        % 2. SMDP Policy Engine & NeurODE Continuous Dynamics (Center-Left Column, x=5.2, y=0.4)
+        \node[draw=purple!80, fill=purple!15, rounded corners=4pt, thick, text width=4.5cm, minimum height=3.6cm, align=center] (smdp) at (5.2, 0.4) {%
+            \textbf{Decentralized SMDP Engine}\\[2pt]
+            \small 2-Layer MLP ($4 \to 64 \to 64 \to |\Phi_j|$)\\[3pt]
+            \footnotesize \textbf{NeurODE Continuous Dynamics:}\\[1pt]
+            \scriptsize $\frac{ds_j(t)}{dt} = f_\theta(s_j(t), \phi_j)$\\[1pt]
+            \scriptsize $s(t+\tau) = s(t) + \int_t^{t+\tau} f_\theta \, du$\\[3pt]
+            \footnotesize \textbf{Continuous Discounting:} $\gamma^{\tau(s, a)}$\\[1pt]
+            \scriptsize $r + \gamma^\tau \max_{a'} Q(s', a'; \theta^-)$\\[3pt]
+            \footnotesize \textbf{Edge Compute Profile:}\\[1pt]
+            \scriptsize 4,740 weights (\textbf{18.52\,KB}), \textbf{33.28\,$\mu$s}
+        };
 
-    % 3. Action-Duration Bounds & Preemption Unit (Center-Right Column, x=10.5)
-    \node[draw=orange!80, fill=yellow!20, rounded corners=4pt, thick, minimum width=3.8cm, minimum height=1.5cm, align=center] (safety) at (10.5, 1.6) {%
-        \textbf{Action-Duration Envelope}\\[2pt]
-        \small Dynamic Green: $\tau = \max(10\,\text{s}, \min(2 q_{\text{act}}, 45\,\text{s}))$\\[2pt]
-        \small Clearance: $t_{\text{yellow}} = 3\,\text{s}$ (deterministic)\\[2pt]
-        \footnotesize Eliminates Flickering \& Starvation
-    };
+        % 3. Action-Duration Bounds & Preemption Unit (Center-Right Column, x=10.5)
+        \node[draw=orange!80, fill=yellow!20, rounded corners=4pt, thick, text width=3.8cm, minimum height=1.5cm, align=center] (safety) at (10.5, 1.6) {%
+            \textbf{Action-Duration Envelope}\\[2pt]
+            \small Dynamic Green: $\tau \in [10\,\text{s}, 45\,\text{s}]$\\[2pt]
+            \small Clearance: $t_{\text{yellow}} = 3\,\text{s}$ (deterministic)\\[2pt]
+            \footnotesize Eliminates Flickering \& Starvation
+        };
 
-    \node[draw=red!80, fill=orange!15, rounded corners=4pt, thick, minimum width=3.8cm, minimum height=1.5cm, align=center] (evp) at (10.5, -0.8) {%
-        \textbf{Rolling EVP \& Momentum Flush}\\[2pt]
-        \small Rolling Green Wave: $a_j \leftarrow \phi_{\text{EV}}$\\[2pt]
-        \small Active Momentum Flush: $r_{\text{momentum}}(s)$\\[2pt]
-        \footnotesize Suppresses Secondary Shockwave ($T_{\text{rec}}$)
-    };
+        \node[draw=red!80, fill=orange!15, rounded corners=4pt, thick, text width=3.8cm, minimum height=1.5cm, align=center] (evp) at (10.5, -0.8) {%
+            \textbf{Rolling EVP \& Momentum Flush}\\[2pt]
+            \small Rolling Green Wave: $a_j \leftarrow \phi_{\text{EV}}$\\[2pt]
+            \small Active Momentum Flush: $r_{\text{momentum}}(s)$\\[2pt]
+            \footnotesize Suppresses Secondary Shockwave ($T_{\text{rec}}$)
+        };
 
-    % 4. Physical Execution & Microscopic SUMO Network (Right Column, x=15.6)
-    \node[draw=green!80, fill=green!15, rounded corners=4pt, thick, minimum width=3.3cm, minimum height=1.5cm, align=center] (act) at (15.6, 1.6) {%
-        \textbf{TraCI Signal Actuator}\\[2pt]
-        \small Local Phase Switching\\[2pt]
-        \small Zero Inter-Agent Comms\\[2pt]
-        \footnotesize $\mathcal{O}(1)$ Decentralized Execution
-    };
+        % 4. Physical Execution & Microscopic SUMO Network (Right Column, x=15.6)
+        \node[draw=green!80, fill=green!15, rounded corners=4pt, thick, text width=3.3cm, minimum height=1.5cm, align=center] (act) at (15.6, 1.6) {%
+            \textbf{TraCI Signal Actuator}\\[2pt]
+            \small Local Phase Switching\\[2pt]
+            \small Zero Inter-Agent Comms\\[2pt]
+            \footnotesize $\mathcal{O}(1)$ Decentralized Execution
+        };
 
-    \node[draw=teal!80, fill=green!25, rounded corners=4pt, thick, minimum width=3.3cm, minimum height=1.5cm, align=center] (sumo) at (15.6, -0.8) {%
-        \textbf{SUMO Microscopic Engine}\\[2pt]
-        \small Krauss Car-Following Dynamics\\[2pt]
-        \small Manhattan OSM (177 Junctions)\\[2pt]
-        \footnotesize High-Density Rush-Hour Flow
-    };
+        \node[draw=teal!80, fill=green!25, rounded corners=4pt, thick, text width=3.3cm, minimum height=1.5cm, align=center] (sumo) at (15.6, -0.8) {%
+            \textbf{SUMO Microscopic Engine}\\[2pt]
+            \small Krauss Car-Following Dynamics\\[2pt]
+            \small Manhattan OSM (177 Junctions)\\[2pt]
+            \footnotesize High-Density Rush-Hour Flow
+        };
 
-    % Clean Orthogonal Connectors with White-Filled Labels
-    \draw[arrow, rounded corners=3pt] (q_in.east) -- ++(0.6, 0) |- ([yshift=24pt]smdp.west);
-    \draw[arrow] (phase_in.east) -- (smdp.west);
-    \draw[dasharrow, rounded corners=3pt] (ev_in.east) -- ++(0.6, 0) |- ([yshift=-24pt]smdp.west);
-    \draw[dasharrow, rounded corners=3pt] (ev_in.east) -- ++(0.9, 0) |- (evp.west) node[pos=0.7, below, font=\scriptsize\bfseries, text=red!80, fill=white, inner sep=1.5pt] {Preempt Trigger};
+        % Clean Orthogonal Connectors with White-Filled Labels
+        \draw[arrow, rounded corners=3pt] (q_in.east) -- ++(0.6, 0) |- ([yshift=24pt]smdp.west);
+        \draw[arrow] (phase_in.east) -- (smdp.west);
+        \draw[dasharrow, rounded corners=3pt] (ev_in.east) -- ++(0.6, 0) |- ([yshift=-24pt]smdp.west);
+        \draw[dasharrow, rounded corners=3pt] (ev_in.east) -- ++(0.9, 0) |- (evp.west) node[pos=0.7, below, font=\scriptsize\bfseries, text=red!80, fill=white, inner sep=1.5pt] {Preempt Trigger};
 
-    \draw[arrow, rounded corners=3pt] ([yshift=22pt]smdp.east) -- ++(0.8, 0) |- (safety.west) node[pos=0.6, above, font=\scriptsize\bfseries, fill=white, inner sep=1.5pt] {Target Phase $a_j$};
-    \draw[arrow] (safety.east) -- (act.west) node[midway, above, font=\scriptsize\bfseries, fill=white, inner sep=1.5pt] {Bounded $(\phi, \tau)$};
-    \draw[arrow] (act.south) -- (sumo.north) node[midway, right, font=\tiny\bfseries, fill=white, inner sep=1.5pt] {Signal States};
-    \draw[arrow] (evp.east) -- (sumo.west) node[midway, above, font=\scriptsize\bfseries, fill=white, inner sep=1.5pt] {Preempt Flush};
+        \draw[arrow, rounded corners=3pt] ([yshift=22pt]smdp.east) -- ++(0.8, 0) |- (safety.west) node[pos=0.6, above, font=\scriptsize\bfseries, fill=white, inner sep=1.5pt] {Target Phase $a_j$};
+        \draw[arrow] (safety.east) -- (act.west) node[midway, above, font=\scriptsize\bfseries, fill=white, inner sep=1.5pt] {Bounded $(\phi, \tau)$};
+        \draw[arrow] (act.south) -- (sumo.north) node[midway, right, font=\tiny\bfseries, fill=white, inner sep=1.5pt] {Signal States};
+        \draw[arrow] (evp.east) -- (sumo.west) node[midway, above, font=\scriptsize\bfseries, fill=white, inner sep=1.5pt] {Preempt Flush};
 
-    % Closed-loop feedback
-    \draw[arrow, draw=blue!70, thick, rounded corners=4pt] (sumo.south) -- ++(0, -0.7) -| node[pos=0.25, below, font=\scriptsize\bfseries, text=blue!90, fill=white, inner sep=2pt] {Closed-Loop Microscopic Trajectory Feedback: $[q_l(t+\tau)]$, Elapsed Interval $\tau$, Continuous Reward $r(s, a)$} ([yshift=-4pt]ev_in.south);
-
-\end{tikzpicture}
+        % Closed-loop feedback
+        \draw[arrow, draw=blue!70, thick, rounded corners=4pt] (sumo.south) -- ++(0, -0.7) -| node[pos=0.25, below, font=\scriptsize\bfseries, text=blue!90, fill=white, inner sep=2pt] {Closed-Loop Microscopic Trajectory Feedback: $[q_l(t+\tau)]$, Elapsed Interval $\tau$, Continuous Reward $r(s, a)$} ([yshift=-4pt]ev_in.south);
+    \end{tikzpicture}%
+}
 \caption{\textbf{Decentralized AURA Policy and Resilient Control Architecture.} Localized approach queue lengths $[q_l]$, active phase index $\phi_j$, and elapsed duration $\tau_{\text{elapsed}}$ constitute the localized SMDP state $s_j$. The ultra-lightweight SMDP Q-network (4,740 parameters, 18.52\,KB) selects the non-conflicting target phase $a_j$ in $33.28\,\mu\text{s}$, with continuous-time inter-decision transitions governed by Neural Ordinary Differential Equations (NeurODEs)~\cite{chen2018neural}. The deterministic action-duration safety envelope enforces statutory green boundaries ($10\,\text{s} \le \tau \le 45\,\text{s}$) and mandatory 3-second yellow clearance intervals, eliminating phase flickering and pedestrian hazards. Upon emergency vehicle detection ($d_{\text{EV}} \le 120\,\text{m}$), rolling preemption establishes a localized green wave, while the post-preemption momentum recovery mechanism dynamically suppresses secondary cross-arterial congestion shockwaves ($T_{\text{rec}}$) before restoring decentralized SMDP control.}
 \label{fig:architecture}
 \vspace{-2mm}
