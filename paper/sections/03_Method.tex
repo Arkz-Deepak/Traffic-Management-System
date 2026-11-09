@@ -106,10 +106,10 @@ where each action chooses the next green phase target.
 \subsubsection{Action-Duration Bounds and Transition Dynamics}
 To eliminate phase flickering, guarantee pedestrian clearance, and prevent arterial starvation, action durations are bounded by a deterministic duration function $\tau(s_j, a_j)$:
 \begin{equation}
-\tau(s_j, a_j) = \max\Big(t_{\min}, \, \min\big(2 \cdot \max_{l \in \mathcal{L}_{a_j}^{\text{in}}} q_l(t), \, t_{\max}\big)\Big)
+\tau(s_j, a_j) = \max\Big(t_{\min}, \, \min\big(2 \cdot \hat{q}_{a_j}(t), \, t_{\max}\big)\Big)
 \label{eq:duration}
 \end{equation}
-where $\mathbf{t_{\min} = 10\,\text{s}}$ enforces the statutory minimum clearance headway for queued vehicles to accelerate from rest, and $\mathbf{t_{\max} = 45\,\text{s}}$ bounds maximum green duration against opposing arterial starvation. Whenever a phase transition occurs ($a_j \ne \phi_j$), a mandatory \textbf{3-second yellow clearance interval} $\mathbf{t_{\text{yellow}} = 3\,\text{s}}$ is deterministically executed prior to displaying the new green phase.
+where $\hat{q}_{a_j}(t) = \max_{l \in \mathcal{L}_{a_j}^{\text{in}}} q_l(t)$ denotes the peak backlog among incoming lanes receiving green under candidate phase $a_j$, with $\mathbf{t_{\min} = 10\,\text{s}}$ enforcing the statutory minimum clearance headway for queued vehicles to accelerate from rest, and $\mathbf{t_{\max} = 45\,\text{s}}$ bounding maximum green duration against opposing arterial starvation. Whenever a phase transition occurs ($a_j \ne \phi_j$), a mandatory \textbf{3-second yellow clearance interval} $\mathbf{t_{\text{yellow}} = 3\,\text{s}}$ is deterministically executed prior to displaying the new green phase.
 
 \subsubsection{Continuous-Time Queue Dynamics via Neural ODEs (NeurODEs)}
 Between discrete decision epochs, incoming vehicle arrivals and queue dissipation evolve continuously according to an underlying dynamical system:
@@ -127,20 +127,27 @@ This continuous-time NeurODE evolution rigorously justifies the duration-discoun
 \subsubsection{Duration-Discounted Bellman Optimization}
 Because the duration $\tau(s, a)$ varies per decision step, the standard fixed-step Bellman equation is mathematically invalid. We apply continuous-time discounting within the SMDP Q-learning update:
 \begin{equation}
-\mathcal{L}(\theta) = \mathbb{E}_{(s, a, r, \tau, s') \sim \mathcal{D}} \left[ \left( r + \gamma^{\tau} \max_{a' \in \Phi_j} Q(s', a'; \theta^-) - Q(s, a; \theta) \right)^2 \right]
+\begin{aligned}
+\mathcal{L}(\theta) = \mathbb{E}_{\mathcal{D}} \Big[ \Big( & r + \gamma^{\tau} \max_{a' \in \Phi_j} Q(s', a'; \theta^-) \\
+& - Q(s, a; \theta) \Big)^2 \Big]
+\end{aligned}
 \label{eq:smdp_loss}
 \end{equation}
-where $\gamma = 0.95$ denotes the base per-second discount factor, properly weighted by $\gamma^\tau$ across the variable duration $\tau \in [10, 45]$\,s, and $\theta^-$ represents a target network periodically synchronized every $C = 1{,}000$ steps. Transitions $(s, a, r, \tau, s')$ are stored in an experience replay buffer $\mathcal{D}$ of capacity $N = 10{,}000$ and sampled with mini-batch size $B = 64$.
+where expectation is taken over experience transitions $(s, a, r, \tau, s') \sim \mathcal{D}$ sampled from an experience replay buffer $\mathcal{D}$ of capacity $N = 10{,}000$ with mini-batch size $B = 64$. Here, $\gamma = 0.95$ denotes the base per-second discount factor, properly weighted by $\gamma^\tau$ across the variable duration $\tau \in [10, 45]$\,s, and $\theta^-$ represents a target network periodically synchronized every $C = 1{,}000$ steps.
 
 \subsection{Reward Function and Post-Preemption Momentum Recovery}
 The primary objective is maximizing network vehicle throughput while minimizing queue length and preventing cross-corridor gridlock. The scalar reward $r(s, a)$ comprises three terms:
 \begin{equation}
-r(s, a) = - \sum_{l \in \mathcal{L}_j^{\text{in}}} q_l(t) + \lambda \cdot \max\Big(0, \sum_{l \in \mathcal{L}_j^{\text{in}}} \big(q_l(t-\tau) - q_l(t)\big) \Big) + r_{\text{momentum}}(s)
+\begin{aligned}
+r(s, a) = &-\sum_{l \in \mathcal{L}_j^{\text{in}}} q_l(t) \\
+&+ \lambda \cdot \max\Big(0, \sum_{l \in \mathcal{L}_j^{\text{in}}} \big(q_l(t-\tau) - q_l(t)\big) \Big) \\
+&+ r_{\text{momentum}}(s)
+\end{aligned}
 \label{eq:reward}
 \end{equation}
 where the first term penalizes instantaneous halting vehicles, the second term provides a momentum throughput bonus ($\lambda = 1.5$) whenever queues decrease over the phase interval, and $r_{\text{momentum}}(s)$ represents an explicit shockwave mitigation term:
 \begin{equation}
-r_{\text{momentum}}(s) = - \beta \sum_{l \in \mathcal{L}_{\text{cross}}} q_l(t) \cdot \mathbb{I}(t_{\text{wait}, l} > t_{\text{thresh}})
+r_{\text{momentum}}(s) = - \beta \sum_{l \in \mathcal{L}_{\text{cross}}} q_l(t) \cdot \mathbb{I}\big(t_{\text{wait}, l} > t_{\text{thresh}}\big)
 \label{eq:momentum_term}
 \end{equation}
 where $\beta = 2.0$ heavily penalizes lingering queues on cross-street approaches following an emergency vehicle preemption event.
