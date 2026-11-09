@@ -76,14 +76,6 @@ Dynamic EVP-DRL (TR-C 2023)~\cite{lin2023dynamic} & 17.79 $\pm$ 0.88 & 34.4 $\pm
 }
 \end{table*}
 
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=\textwidth]{fig2_corridor_evaluation.png}
-\caption{\textbf{Empirical Multi-Baseline Microscopic Traffic Performance on Saturated Rush-Hour Arterial Corridor ($p = 0.22$).} (a) Authentic 1,000-second TraCI vehicle queue lengths across all six benchmarked controllers under identical Krauss car-following physics. (b) Temporal cross-street queue response following emergency preemption at $t=400$\,s; without momentum flushing, EVP-DRL triggers a severe secondary queue surge of 48 vehicles persisting for 55\,s, whereas AURA dissipates the shockwave in just 30.4\,s. (c) Emergency vehicle clearance latency, confirming that AURA slashes EV delay by 47.1\% compared to standard adaptive baselines.}
-\label{fig:corridor_benchmark_panel}
-\vspace{-2mm}
-\end{figure*}
-
 \subsection{Analysis of Emergency Preemption and Shockwave Recovery}
 Under saturated rush-hour conditions, emergency vehicle preemption introduces a fundamental trade-off: forcing green along the emergency corridor inherently starves conflicting cross-streets. As detailed in Table~\ref{tab:results} and Fig.~\ref{fig:corridor_benchmark_panel}:
 \begin{itemize}
@@ -92,6 +84,14 @@ Under saturated rush-hour conditions, emergency vehicle preemption introduces a 
     \item \textbf{Secondary Shockwave Dissipation ($T_{\text{rec}}$ Slashed by 44.7\%):} The crucial differentiation between AURA and existing literature lies in post-preemption recovery. In EVP-DRL (Lin et al. 2023), immediately terminating preemption causes an acute secondary congestion surge ($Q_{\max} = 34.4$ vehicles), requiring \textbf{55.0 $\pm$ 5.2\,s} to normalize. In contrast, AURA's active momentum flushing allocates targeted post-preemption green to the starved cross-street, restoring baseline flow in \textbf{30.4 $\pm$ 17.1\,s} (a \textbf{44.7\% reduction} in shockwave duration).
     \item \textbf{Civilian Flow and Decarbonization (8.9\%--11.8\% $\text{CO}_2$ Cut):} Overall, AURA maintains an average halting queue of $\bar{Q} = \mathbf{15.81 \pm 1.53}$ vehicles across the 1,000-second simulation, outperforming Actuated ($18.72 \pm 1.11$), Max-Pressure ($17.93 \pm 1.01$), PressLight ($17.93 \pm 1.01$), and EVP-DRL ($17.79 \pm 0.88$). Crucially, by eliminating stop-and-go queue oscillations, AURA reduces cumulative vehicle $\text{CO}_2$ emissions to \textbf{122.71\,kg}, delivering an \textbf{8.9\% to 11.8\% reduction in greenhouse emissions} relative to contemporary DRL and actuated baselines.
 \end{itemize}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth]{fig2_corridor_evaluation.png}
+\caption{\textbf{Empirical Multi-Baseline Microscopic Traffic Performance on Saturated Rush-Hour Arterial Corridor ($p = 0.22$).} (a) Authentic 1,000-second TraCI vehicle queue lengths across all six benchmarked controllers under identical Krauss car-following physics. (b) Temporal cross-street queue response following emergency preemption at $t=400$\,s; without momentum flushing, EVP-DRL triggers a severe secondary queue surge of 48 vehicles persisting for 55\,s, whereas AURA dissipates the shockwave in just 30.4\,s. (c) Emergency vehicle clearance latency, confirming that AURA slashes EV delay by 47.1\% compared to standard adaptive baselines.}
+\label{fig:corridor_benchmark_panel}
+\vspace{-2mm}
+\end{figure*}
 
 \subsection{Component Ablation Study}
 To evaluate the individual contributions of AURA's architectural components, we conducted a formal ablation study across the five random seeds under identical saturated traffic conditions. Three configurations were compared:
@@ -185,14 +185,6 @@ Dynamic EVP-DRL (TR-C 2023)~\cite{lin2023dynamic} & 115.89 & 280 & \textbf{15} &
 }
 \end{table}
 
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=\textwidth]{fig3_manhattan_evaluation.png}
-\caption{\textbf{Large-Scale Empirical Benchmark on Authentic Midtown Manhattan OpenStreetMap Network.} (a) Network-wide halting vehicle counts over 600 seconds across 177 signalized intersections and 661 edges under dense traffic demand (1,501 vehicles). AURA achieves the lowest average network queue ($\bar{Q} = 109.46$) and lowest peak backlog ($Q_{\max} = 257$), outperforming Traditional Fixed-Time ($\bar{Q}=126.73$, a 13.6\% reduction) and modern SOTA PressLight ($\bar{Q}=116.72$). (b) Emergency vehicle corridor preemption dynamics following ambulance injection at $t=200$\,s, clearing the 37-edge corridor in 15\,s while preventing gridlock cascades across non-preempted avenues.}
-\label{fig:manhattan_panel}
-\vspace{-2mm}
-\end{figure*}
-
 As shown in Table~\ref{tab:manhattan_results} and Fig.~\ref{fig:manhattan_panel}:
 \begin{enumerate}
     \item \textbf{Global Metropolitan Network Queue Suppression (13.6\% Improvement):} In a large-scale real metropolitan network under 1,501 circulating vehicles, AURA achieves the lowest average network queue ($\mathbf{\bar{Q} = 109.46}$ vehicles) and the lowest peak network queue ($\mathbf{Q_{\max} = 257}$ vehicles), outperforming Fixed-Time ($\bar{Q} = 126.73$, a \textbf{13.6\% reduction}; $Q_{\max} = 343$, a \textbf{25.1\% reduction}), Actuated control ($\bar{Q} = 119.10$), and SOTA PressLight ($\bar{Q} = 116.72$).
@@ -200,3 +192,11 @@ As shown in Table~\ref{tab:manhattan_results} and Fig.~\ref{fig:manhattan_panel}
     \item \textbf{Localized Rolling Preemption Eliminates Network-Wide Gridlock:} By executing localized rolling preemption only when the EV is physically on an approaching approach rather than freezing the entire multi-kilometer arterial, AURA prevents network-wide gridlock cascades.
     \item \textbf{Decentralized SMDP Generalization to Asymmetric Urban Topologies:} Defining the SMDP state over topological approach sets $\mathcal{L}_j^{\text{in}}$ and phase space $\Phi_j$ enables AURA to control heterogeneous one-way avenues, 3-way junctions, and 5-way intersections across Manhattan without manual re-engineering.
 \end{enumerate}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth]{fig3_manhattan_evaluation.png}
+\caption{\textbf{Large-Scale Empirical Benchmark on Authentic Midtown Manhattan OpenStreetMap Network.} (a) Network-wide halting vehicle counts over 600 seconds across 177 signalized intersections and 661 edges under dense traffic demand (1,501 vehicles). AURA achieves the lowest average network queue ($\bar{Q} = 109.46$) and lowest peak backlog ($Q_{\max} = 257$), outperforming Traditional Fixed-Time ($\bar{Q}=126.73$, a 13.6\% reduction) and modern SOTA PressLight ($\bar{Q}=116.72$). (b) Emergency vehicle corridor preemption dynamics following ambulance injection at $t=200$\,s, clearing the 37-edge corridor in 15\,s while preventing gridlock cascades across non-preempted avenues.}
+\label{fig:manhattan_panel}
+\vspace{-2mm}
+\end{figure*}

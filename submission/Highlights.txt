@@ -1,0 +1,5 @@
+- SMDP formulation with NeurODE continuous queue dynamics and duration discount. (78 chars)
+- Deterministic action bounds (10-45s) and 3s clearance stop phase flickering. (76 chars)
+- Active momentum recovery flushes preemption shockwaves 44.7% faster. (68 chars)
+- Validated on 177-signal Manhattan network cutting queue backlogs by 13.6%. (74 chars)
+- Ultra-lightweight 18.52 KB policy runs 10,000 intersections on single core. (75 chars)
