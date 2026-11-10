@@ -109,6 +109,27 @@ run_edge_benchmark() {
     exit 0
 }
 
+# Manhattan GUI Mode
+run_manhattan_gui_mode() {
+    print_banner
+    preflight_check
+    echo -e "${CYAN}${BOLD}🏙️  Launching Midtown Manhattan (177 Intersections) in SUMO-GUI...${NC}\n"
+    cd "$BACKEND_DIR"
+    node server.js > /dev/null 2>&1 &
+    BACKEND_PID=$!
+    sleep 1
+    cd "$DASHBOARD_DIR"
+    npm run dev -- --port 5173 --host > /dev/null 2>&1 &
+    FRONTEND_PID=$!
+    sleep 1.5
+    cd "$AI_DIR"
+    CUDA_VISIBLE_DEVICES="" "$VENV_PY" run_manhattan_gui.py &
+    AI_PID=$!
+    echo -e "\n${GREEN}${BOLD}✨ Manhattan SUMO-GUI & Web Dashboard are Active!${NC}"
+    wait "$AI_PID"
+    exit 0
+}
+
 # Manhattan mode
 run_manhattan_mode() {
     print_banner
@@ -206,6 +227,9 @@ launch_full_system() {
 case "$1" in
     --edge-benchmark|--benchmark)
         run_edge_benchmark
+        ;;
+    --manhattan-gui)
+        run_manhattan_gui_mode
         ;;
     --manhattan)
         run_manhattan_mode
