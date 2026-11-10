@@ -6,7 +6,7 @@
 ![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-1.31-005CED?style=for-the-badge&logo=onnx&logoColor=white)
 ![SUMO](https://img.shields.io/badge/SUMO-Traffic_Simulation-blue?style=for-the-badge)
 [![IEEE T-ITS](https://img.shields.io/badge/Submitted_to-IEEE_T--ITS-00629B?style=for-the-badge)](https://ieeexplore.ieee.org)
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20265628-blue?style=for-the-badge)](https://doi.org/10.5281/zenodo.20265628)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20265627-blue?style=for-the-badge)](https://doi.org/10.5281/zenodo.20265627)
 
 **AURA v2.0** (*Adaptive Urban Routing and Actuation*), submitted to **IEEE Transactions on Intelligent Transportation Systems (IEEE T-ITS)** and developed for **Smart India Hackathon 2026**, is a next-generation decentralized traffic optimization, multi-agent coordination, and emergency vehicle preemption system.
 
@@ -113,6 +113,7 @@ Submitted to **IEEE Transactions on Intelligent Transportation Systems (IEEE T-I
   title     = {AURA: Resilient Urban Traffic Signal Control via Semi-Markov Reinforcement Learning with Action-Duration Bounds and Shockwave-Mitigated Preemption},
   journal   = {IEEE Transactions on Intelligent Transportation Systems},
   year      = {2026},
+  doi       = {10.5281/zenodo.20265627},
   note      = {Submitted for peer review}
 }
 ```
