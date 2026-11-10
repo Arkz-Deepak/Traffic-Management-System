@@ -149,131 +149,138 @@ def run_marl_corridor():
         except Exception as e:
             print(f"ℹ️ ONNX Runtime not active: {e}")
 
-    traci.start([sumo_binary, "-c", sumo_cfg, "--start", "--no-step-log", "true"])
-    
-    # Initialize 10 decentralized agents
-    agents = {j_id: IntersectionAgent(j_id) for j_id in NODE_MAP.values()}
-    step = 0
-    departed_vehicles_count = 0
-
     try:
-        while traci.simulation.getMinExpectedNumber() > 0:
-            traci.simulationStep()
-            step += 1
-
-            # 1. Check for Emergency Vehicles in the simulation
-            all_vehicles = traci.vehicle.getIDList()
-            active_ambulances = [v for v in all_vehicles if 'amb' in v.lower() or 'vip' in v.lower()]
-            ev_active = len(active_ambulances) > 0
-            ev_edge = traci.vehicle.getRoadID(active_ambulances[0]) if ev_active else None
-
-            # 2. Check Backend for One-Click Ambulance Injection & Tactical Routes
-            emergency_route = None
-            try:
-                # Check for pending dashboard one-click injection
-                amb_res = requests.get(PENDING_AMB_URL, timeout=0.08).json()
-                pending = amb_res.get("pendingDispatch")
-                if pending:
-                    amb_id = pending.get("id", f"amb_{step}")
-                    route_name = "corridor_row0"
-                    traci.vehicle.add(amb_id, route_name, typeID='ambulance_type', departSpeed='max')
-                    print(f"🚨 [One-Click Inject] Successfully injected {amb_id} into corridor!")
-            except Exception:
-                pass
-
-            # Check general system mode & manual route
-            try:
-                res = requests.get(BACKEND_URL, timeout=0.08).json()
-                sys_mode = res.get("systemMode", "AI_OPTIMIZED")
-                emergency_route = res.get("emergencyRoute", None)
-            except Exception:
-                sys_mode = "AI_OPTIMIZED"
-
-            # 3. Dynamic Green Wave Calculation
-            force_phases = {}
-            if emergency_route and len(emergency_route) > 0:
-                target_junctions = [NODE_MAP[int(n)] for n in emergency_route if int(n) in NODE_MAP]
-                for j in target_junctions:
-                    force_phases[j] = 2  # Arterial green wave
-            elif ev_active and ev_edge:
-                if any(x in ev_edge for x in ['A0', 'B0', 'C0', 'D0', 'E0']):
-                    for j in ['A0', 'B0', 'C0', 'D0', 'E0']:
-                        force_phases[j] = 2
-                elif any(x in ev_edge for x in ['A1', 'B1', 'C1', 'D1', 'E1']):
-                    for j in ['A1', 'B1', 'C1', 'D1', 'E1']:
-                        force_phases[j] = 2
-            elif sys_mode == "EMERGENCY_NS":
-                for j in NODE_MAP.values(): force_phases[j] = 0
-            elif sys_mode == "EMERGENCY_EW":
-                for j in NODE_MAP.values(): force_phases[j] = 2
-
-            # 4. Step all 10 MARL agents with 1-hop neighbor message passing
-            total_grid_queues = []
-            corridor_payload = []
+        while True:
+            traci.start([sumo_binary, "-c", sumo_cfg, "--start", "--no-step-log", "true"])
             
-            # Compute neighbor context for A0..E0 (corridor communication)
-            for j_id, agent in agents.items():
-                target_override = force_phases.get(j_id, None)
-                
-                # Neighbor message exchange: estimate downstream pressure
-                neighbor_bias = 0.0
-                if j_id == 'A0' and 'B0' in agents:
-                    neighbor_bias = 0.2 * agents['B0'].get_queues()[1]
-                elif j_id == 'B0' and 'C0' in agents:
-                    neighbor_bias = 0.2 * agents['C0'].get_queues()[1]
-                
-                agent.step(target_override, neighbor_context_q=neighbor_bias)
-                ns_q, ew_q = agent.get_queues()
-                total_grid_queues.append(ns_q + ew_q)
-                
-                corridor_payload.append({
-                    "id": j_id,
-                    "name": NODE_NAMES.get(j_id, j_id),
-                    "nsQueue": int(ns_q),
-                    "ewQueue": int(ew_q),
-                    "phase": "NS_GREEN" if agent.current_phase == 0 else ("NS_YELLOW" if agent.current_phase == 1 else ("EW_GREEN" if agent.current_phase == 2 else "EW_YELLOW")),
-                    "timer": int(agent.phase_timer),
-                    "isPreempt": agent.preempt_active,
-                    "isFlushing": agent.is_flushing
-                })
+            # Initialize 10 decentralized agents
+            agents = {j_id: IntersectionAgent(j_id) for j_id in NODE_MAP.values()}
+            step = 0
 
-            # 5. Push real-time telemetry to backend every 3 steps (approx. 100ms)
-            if step % 3 == 0:
-                sample_j = agents['A0']
-                ns_q, ew_q = sample_j.get_queues()
-                
-                status_text = "AURA: Cooperative GAT MARL Active"
-                if ev_active:
-                    status_text = f"🚑 GREEN WAVE ACTIVE: Emergency Preemption ({ev_edge or 'In Transit'})"
-                elif sys_mode != "AI_OPTIMIZED":
-                    status_text = f"🚨 MANUAL OVERRIDE: {sys_mode}"
-
-                tot_q = sum(total_grid_queues)
-                throughput_est = max(10, int(len(all_vehicles) * 1.8))
-                
-                telemetry = {
-                    "laneACount": int(ns_q // 2),
-                    "laneBCount": int(ew_q // 2),
-                    "laneCCount": int(ns_q - (ns_q // 2)),
-                    "laneDCount": int(ew_q - (ew_q // 2)),
-                    "activeSignal": status_text,
-                    "isAiActive": True,
-                    "corridorNodes": corridor_payload,
-                    "metrics": {
-                        "networkQueue": int(tot_q),
-                        "throughputVehPerMin": throughput_est,
-                        "shockwaveRecoverySec": 13.5 if ev_active else 0.0,
-                        "co2ReductionPct": 18.6,
-                        "evActive": bool(ev_active),
-                        "activeCorridorSpeedKmh": 49.2 if not ev_active else 62.0
-                    }
-                }
+            while traci.simulation.getMinExpectedNumber() > 0:
+                traci.simulationStep()
+                step += 1
+    
+                # 1. Check for Emergency Vehicles in the simulation
+                all_vehicles = traci.vehicle.getIDList()
+                active_ambulances = [v for v in all_vehicles if 'amb' in v.lower() or 'vip' in v.lower()]
+                ev_active = len(active_ambulances) > 0
+                ev_edge = traci.vehicle.getRoadID(active_ambulances[0]) if ev_active else None
+    
+                # 2. Check Backend for One-Click Ambulance Injection & Tactical Routes
+                emergency_route = None
                 try:
-                    requests.post(BACKEND_URL, json=telemetry, timeout=0.08)
+                    # Check for pending dashboard one-click injection
+                    amb_res = requests.get(PENDING_AMB_URL, timeout=0.08).json()
+                    pending = amb_res.get("pendingDispatch")
+                    if pending:
+                        amb_id = pending.get("id", f"amb_{step}")
+                        route_name = "corridor_row0"
+                        traci.vehicle.add(amb_id, route_name, typeID='ambulance_type', departSpeed='max')
+                        print(f"🚨 [One-Click Inject] Successfully injected {amb_id} into corridor!")
                 except Exception:
                     pass
+    
+                # Check general system mode & manual route
+                try:
+                    res = requests.get(BACKEND_URL, timeout=0.08).json()
+                    sys_mode = res.get("systemMode", "AI_OPTIMIZED")
+                    emergency_route = res.get("emergencyRoute", None)
+                except Exception:
+                    sys_mode = "AI_OPTIMIZED"
+    
+                # 3. Dynamic Green Wave Calculation
+                force_phases = {}
+                if emergency_route and len(emergency_route) > 0:
+                    target_junctions = [NODE_MAP[int(n)] for n in emergency_route if int(n) in NODE_MAP]
+                    for j in target_junctions:
+                        force_phases[j] = 2  # Arterial green wave
+                elif ev_active and ev_edge:
+                    if any(x in ev_edge for x in ['A0', 'B0', 'C0', 'D0', 'E0']):
+                        for j in ['A0', 'B0', 'C0', 'D0', 'E0']:
+                            force_phases[j] = 2
+                    elif any(x in ev_edge for x in ['A1', 'B1', 'C1', 'D1', 'E1']):
+                        for j in ['A1', 'B1', 'C1', 'D1', 'E1']:
+                            force_phases[j] = 2
+                elif sys_mode == "EMERGENCY_NS":
+                    for j in NODE_MAP.values(): force_phases[j] = 0
+                elif sys_mode == "EMERGENCY_EW":
+                    for j in NODE_MAP.values(): force_phases[j] = 2
+    
+                # 4. Step all 10 MARL agents with 1-hop neighbor message passing
+                total_grid_queues = []
+                corridor_payload = []
+                
+                # Compute neighbor context for A0..E0 (corridor communication)
+                for j_id, agent in agents.items():
+                    target_override = force_phases.get(j_id, None)
+                    
+                    # Neighbor message exchange: estimate downstream pressure
+                    neighbor_bias = 0.0
+                    if j_id == 'A0' and 'B0' in agents:
+                        neighbor_bias = 0.2 * agents['B0'].get_queues()[1]
+                    elif j_id == 'B0' and 'C0' in agents:
+                        neighbor_bias = 0.2 * agents['C0'].get_queues()[1]
+                    
+                    agent.step(target_override, neighbor_context_q=neighbor_bias)
+                    ns_q, ew_q = agent.get_queues()
+                    total_grid_queues.append(ns_q + ew_q)
+                    
+                    corridor_payload.append({
+                        "id": j_id,
+                        "name": NODE_NAMES.get(j_id, j_id),
+                        "nsQueue": int(ns_q),
+                        "ewQueue": int(ew_q),
+                        "phase": "NS_GREEN" if agent.current_phase == 0 else ("NS_YELLOW" if agent.current_phase == 1 else ("EW_GREEN" if agent.current_phase == 2 else "EW_YELLOW")),
+                        "timer": int(agent.phase_timer),
+                        "isPreempt": agent.preempt_active,
+                        "isFlushing": agent.is_flushing
+                    })
+    
+                # 5. Push real-time telemetry to backend every 3 steps (approx. 100ms)
+                if step % 3 == 0:
+                    sample_j = agents['A0']
+                    ns_q, ew_q = sample_j.get_queues()
+                    
+                    status_text = "AURA: Cooperative GAT MARL Active"
+                    if ev_active:
+                        status_text = f"🚑 GREEN WAVE ACTIVE: Emergency Preemption ({ev_edge or 'In Transit'})"
+                    elif sys_mode != "AI_OPTIMIZED":
+                        status_text = f"🚨 MANUAL OVERRIDE: {sys_mode}"
+    
+                    tot_q = sum(total_grid_queues)
+                    throughput_est = max(10, int(len(all_vehicles) * 1.8))
+                    
+                    telemetry = {
+                        "laneACount": int(ns_q // 2),
+                        "laneBCount": int(ew_q // 2),
+                        "laneCCount": int(ns_q - (ns_q // 2)),
+                        "laneDCount": int(ew_q - (ew_q // 2)),
+                        "activeSignal": status_text,
+                        "isAiActive": True,
+                        "corridorNodes": corridor_payload,
+                        "metrics": {
+                            "networkQueue": int(tot_q),
+                            "throughputVehPerMin": throughput_est,
+                            "shockwaveRecoverySec": 13.5 if ev_active else 0.0,
+                            "co2ReductionPct": 18.6,
+                            "evActive": bool(ev_active),
+                            "activeCorridorSpeedKmh": 49.2 if not ev_active else 62.0
+                        }
+                    }
+                    try:
+                        requests.post(BACKEND_URL, json=telemetry, timeout=0.08)
+                    except Exception:
+                        pass
+    
+                time.sleep(0.01)  # Smooth real-time visualization
 
-            time.sleep(0.01)  # Smooth real-time visualization
+            try:
+                traci.close()
+            except Exception:
+                pass
+            print("🔄 Scenario cycle complete. Looping simulation for persistent live dashboard...")
+            time.sleep(0.5)
 
     except KeyboardInterrupt:
         print("\n🛑 AURA MARL simulation terminated by user.")
