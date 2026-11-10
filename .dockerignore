@@ -1,0 +1,12 @@
+.git
+.github
+**/node_modules
+**/dist
+**/venv
+**/__pycache__
+**/*.pyc
+**/*.log
+paper/
+submission/
+.system_generated/
+scratch/

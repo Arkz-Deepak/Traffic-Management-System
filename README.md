@@ -29,6 +29,8 @@ It combines a **Semi-Markov Decision Process (SMDP)** Q-network with **Continuou
 
 ## ⚡ Edge Micro-Benchmark Results
 
+![AURA Edge Benchmark](aura_edge_benchmark.png)
+
 Benchmarked over 10,000 iterations on CPU / Embedded profile:
 
 | Inference Engine | Precision | Mean Latency | P99 Latency | Throughput | Model Size |
@@ -82,11 +84,25 @@ chmod +x run_aura.sh
 - **REST Telemetry API:** [http://localhost:3000/api/traffic](http://localhost:3000/api/traffic)
 - **WebSocket Broadcast:** `ws://localhost:3000`
 
+### Docker One-Click Deployment
+
+You can also run the entire system (Node.js Backend + React Dashboard + SUMO Simulation) in isolated containers without installing SUMO or Node locally:
+
+```bash
+docker compose up --build
+```
+
 ### Additional CLI Modes
 
 ```bash
 # Launch full system with interactive SUMO-GUI window
 ./run_aura.sh --gui
+
+# Run Edge Computer Vision vehicle detector (CCTV / Webcam)
+./run_aura.sh --vision
+
+# Run Hardware-in-the-Loop physical LED controller bridge
+./run_aura.sh --hil
 
 # Run the single-intersection (A0) production demo
 ./run_aura.sh --demo
@@ -96,6 +112,9 @@ chmod +x run_aura.sh
 
 # Run the sub-millisecond edge ONNX benchmark
 ./run_aura.sh --edge-benchmark
+
+# Launch via Docker Compose
+./run_aura.sh --docker
 
 # Run dependency & port pre-flight checks
 ./run_aura.sh --test

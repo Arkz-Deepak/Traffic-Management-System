@@ -117,6 +117,37 @@ run_manhattan_mode() {
     exit 0
 }
 
+# Vision Detection Mode
+run_vision_mode() {
+    print_banner
+    preflight_check
+    echo -e "${PURPLE}${BOLD}📹 Launching AURA Edge Computer Vision Pipeline...${NC}\n"
+    cd "$BACKEND_DIR"
+    node server.js > /dev/null 2>&1 &
+    BACKEND_PID=$!
+    sleep 1
+    cd "$AI_DIR"
+    CUDA_VISIBLE_DEVICES="" "$VENV_PY" vision_detector.py
+    exit 0
+}
+
+# Hardware-in-the-Loop Mode
+run_hil_mode() {
+    print_banner
+    echo -e "${PURPLE}${BOLD}🚦 Launching AURA Hardware-in-the-Loop Physical LED Bridge...${NC}\n"
+    cd "$AI_DIR"
+    CUDA_VISIBLE_DEVICES="" "$VENV_PY" hil_hardware_bridge.py
+    exit 0
+}
+
+# Docker Compose Mode
+run_docker_mode() {
+    print_banner
+    echo -e "${CYAN}${BOLD}🐳 Booting AURA via Docker Compose...${NC}\n"
+    docker compose up --build
+    exit 0
+}
+
 # Main Full System Launcher
 launch_full_system() {
     USE_GUI="${1:-0}"
@@ -188,6 +219,15 @@ case "$1" in
     --demo-gui)
         launch_full_system 1 "demo"
         ;;
+    --vision)
+        run_vision_mode
+        ;;
+    --hil)
+        run_hil_mode
+        ;;
+    --docker)
+        run_docker_mode
+        ;;
     --test)
         print_banner
         preflight_check
@@ -205,6 +245,9 @@ case "$1" in
         echo -e "  --demo-gui          Start Single Intersection A0 with SUMO-GUI"
         echo -e "  --manhattan         Run 177-Intersection Midtown Manhattan Benchmark"
         echo -e "  --edge-benchmark    Run ONNX sub-millisecond edge latency benchmark"
+        echo -e "  --vision            Run Edge Computer Vision Vehicle Detector (CCTV/Webcam)"
+        echo -e "  --hil               Run Hardware-in-the-Loop Physical LED Controller Bridge"
+        echo -e "  --docker            Launch entire system via Docker Compose"
         echo -e "  --test              Run pre-flight dependency & port sanity check"
         echo -e "  --help, -h          Show this help menu"
         exit 0

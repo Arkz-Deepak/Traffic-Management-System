@@ -1,0 +1,47 @@
+services:
+  backend:
+    build:
+      context: ./traffic-backend
+      dockerfile: Dockerfile
+    container_name: aura-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    restart: unless-stopped
+    networks:
+      - aura-net
+
+  dashboard:
+    build:
+      context: ./traffic-dashboard
+      dockerfile: Dockerfile
+    container_name: aura-dashboard
+    ports:
+      - "5173:5173"
+    environment:
+      - PORT=5173
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - aura-net
+
+  simulation:
+    build:
+      context: ./traffic-ai
+      dockerfile: Dockerfile
+    container_name: aura-simulation
+    environment:
+      - BACKEND_URL=http://backend:3000/api/traffic
+      - PENDING_AMB_URL=http://backend:3000/api/pending-ambulance
+      - SUMO_GUI=0
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - aura-net
+
+networks:
+  aura-net:
+    driver: bridge
